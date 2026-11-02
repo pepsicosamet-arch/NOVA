@@ -1,0 +1,2 @@
+# NOVA
+Nova N6
