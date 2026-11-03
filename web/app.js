@@ -211,6 +211,8 @@ window.novaEvent = ev => {
     case "rates": showRates(ev); break;
     case "update": showUpdate(ev); break;
     case "chip": applyChip(ev.chip, ev.chips); break;
+    case "msg_preview": showMsgPreview(ev); break;
+    case "msg_sent": toast((ev.ok ? "✓ " : "✕ ") + (PLAT_NAME[ev.platform] || "") + (ev.to ? " · " + ev.to : "")); break;
     case "news_show": showBulletin(ev); break;
     case "news_focus": bulletinFocus(ev.index); break;
     case "update_progress": $("#updProg").textContent = "%" + ev.value; break;
@@ -234,6 +236,7 @@ function renderTimers() {
   const box = $("#timers");
   const badge = $("#timerBadge");
   badge.hidden = !timers.length; badge.textContent = timers.length;
+  const b2 = $("#timerBadge2"); if (b2) { b2.hidden = !timers.length; b2.textContent = timers.length; }
   box.innerHTML = timers.length ? "" : '<li class="empty">Kurulu zamanlayıcı yok.</li>';
   for (const t of timers) {
     const li = document.createElement("li");
@@ -279,6 +282,8 @@ function selectTab(name) {
   if (name === "calendar") renderCal();
   if (name === "notes") loadNotes();
   if (name === "map") initMap();
+  if (name === "messages") loadContacts();
+  $$("#menubar [data-menu]").forEach(b => b.classList.toggle("on", b.dataset.menu === name));
 }
 $$(".tabs button").forEach(b => b.onclick = () => selectTab(b.dataset.tab));
 $("#btnDock").onclick = () => document.body.classList.toggle("dock-open");
@@ -332,6 +337,7 @@ function showBulletin(ev) {
   bl.items = ev.items || []; bl.cat = ev.category || "gundem"; bl.i = 0; bl.reading = false;
   if (!bl.items.length) return;
   $("#blName").textContent = ev.name || "Gündem";
+  $$("#blCats button").forEach(b => b.classList.toggle("on", b.dataset.cat === bl.cat));
   const list = $("#blList"); list.innerHTML = "";
   bl.items.slice(0, 6).forEach((n, k) => {
     const li = document.createElement("li");
@@ -352,7 +358,12 @@ function blShow(k) {
   $("#blDesc").textContent = n.desc || "";
   $("#blMeta").textContent = `${n.source} · ${ago(n.ts)}`;
   $("#blMark").textContent = n.img ? "" : (n.source || "").toUpperCase();
-  $("#blImg").style.backgroundImage = n.img ? `url("${n.img.replace(/"/g, "%22")}")` : "";
+  const img = $("#blImg");
+  img.querySelectorAll(".kb").forEach(e => e.remove());
+  if (n.img) { const kb = document.createElement("div"); kb.className = "kb"; kb.style.backgroundImage = `url("${n.img.replace(/"/g, "%22")}")`; img.prepend(kb); }
+  let num = $("#blHero .bl-num"); if (!num) { num = document.createElement("span"); num.className = "bl-num"; $("#blHero").appendChild(num); }
+  num.textContent = String(bl.i + 1).padStart(2, "0");
+  const hero = $("#blHero"); hero.classList.remove("swap"); void hero.offsetWidth; hero.classList.add("swap");
   $$("#blList li").forEach((li, j) => li.classList.toggle("on", j === bl.i));
   const prog = $("#blProg");
   prog.classList.remove("run"); prog.style.width = "0";
@@ -372,7 +383,76 @@ $("#blClose").onclick = closeBulletin;
 $("#blPrev").onclick = () => { bl.reading = false; blShow(bl.i - 1); };
 $("#blNext").onclick = () => { bl.reading = false; blShow(bl.i + 1); };
 $("#blRead").onclick = () => { audioCtx(); api.read_news(bl.cat); };
-$("#blHero").onclick = () => bl.items[bl.i] && api.open_url(bl.items[bl.i].link);
+$("#blHero").onclick = e => {
+  const sh = e.target.closest("[data-share]");
+  const n = bl.items[bl.i]; if (!n) return;
+  if (sh) { e.stopPropagation(); api.share(sh.dataset.share, n.title, n.link); return; }
+  api.open_url(n.link);
+};
+async function openBrief(cat = "gundem") {
+  const d = await api.get_news(cat);
+  if (d && d.items && d.items.length) showBulletin({ category: cat, name: d.name, items: d.items.slice(0, 12) });
+  else toast("Haberlere şu an ulaşılamadı.");
+}
+$$("#blCats button").forEach(b => b.onclick = () => { bl.reading = false; openBrief(b.dataset.cat); });
+
+/* ---------- üst menü ---------- */
+$$("#menubar [data-menu]").forEach(b => b.onclick = () => {
+  const m = b.dataset.menu;
+  if (m === "brief") { document.body.classList.contains("bulletin-on") && bl.cat === "gundem" ? closeBulletin() : openBrief("gundem"); return; }
+  closeBulletin();
+  document.body.classList.add("dock-open");
+  selectTab(m);
+});
+
+/* ---------- mesajlaşma ---------- */
+let contacts = [];
+const PLAT_COLOR = { whatsapp: "#25d366", telegram: "#2aabee", x: "#e7e9ea" };
+const PLAT_NAME = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
+function msgPlat() { return (document.querySelector("[name=mplat]:checked") || {}).value || "whatsapp"; }
+async function loadContacts() {
+  contacts = await api.contacts() || [];
+  const sel = $("#msgTo"); sel.innerHTML = "";
+  for (const c of contacts) sel.add(new Option(c.name, c.name));
+  const ul = $("#contactList"); ul.innerHTML = "";
+  if (!contacts.length) ul.innerHTML = '<li class="empty">Henüz kişi yok. Ayarlar → Mesajlaşma\'dan ekle.</li>';
+  for (const c of contacts) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="av"></span><span><span class="nm"></span><small></small></span>';
+    li.querySelector(".av").textContent = c.name.slice(0, 1).toUpperCase();
+    li.querySelector(".nm").textContent = c.name;
+    li.querySelector("small").textContent = [c.phone && "+" + c.phone, c.tg && "@" + c.tg].filter(Boolean).join(" · ") || "bilgi yok";
+    li.onclick = () => { $("#msgTo").value = c.name; $("#msgForm [name=text]").focus(); };
+    ul.appendChild(li);
+  }
+  msgPlatChanged();
+}
+function msgPlatChanged() {
+  const p = msgPlat();
+  $("#msgTo").hidden = p === "x";
+  $("#msgBtn").textContent = p === "x" ? "Paylaş" : "Gönder";
+  $("#msgHint").textContent = p === "x" ? "Gönderi penceresi hazır açılır" : (info && info.settings.msg_auto_send ? "Otomatik gönderilir" : "Sohbet hazır açılır");
+}
+$$("[name=mplat]").forEach(r => r.onchange = msgPlatChanged);
+$("#msgForm").onsubmit = async e => {
+  e.preventDefault();
+  const f = e.target, text = f.text.value.trim();
+  if (!text) return;
+  const r = await api.msg_send(msgPlat(), f.to.value, text);
+  toast(r ? r.text : "Gönderilemedi.", r && r.ok ? "" : "error");
+  if (r && r.ok) f.text.value = "";
+};
+function showMsgPreview(ev) {
+  const card = $("#msgCard");
+  if (ev.hide) { card.hidden = true; return; }
+  $("#mcPlat").textContent = (ev.platform_name || PLAT_NAME[ev.platform] || "").toUpperCase();
+  $("#mcPlat").style.setProperty("--pc", PLAT_COLOR[ev.platform] || "var(--acc)");
+  $("#mcTo").textContent = ev.to ? ev.to + " kişisine" : (ev.platform === "x" ? "Herkese açık gönderi" : "");
+  $("#mcText").textContent = ev.text;
+  card.hidden = false;
+}
+$("#mcYes").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(true); };
+$("#mcNo").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(false); };
 
 /* ---------- alt haber bandı ---------- */
 async function loadTicker() {
@@ -980,6 +1060,7 @@ whenReady().then(async a => {
   let tab = "news"; try { tab = localStorage.getItem("nova.tab") || "news"; } catch (e) {}
   selectTab(tab);
   calEvents = await api.cal_list() || []; renderCal();
+  if (info.settings.show_brief) setTimeout(() => openBrief("gundem"), 600);
   loadWeather(); loadRates(); loadTicker();
   setInterval(loadTicker, 10 * 60 * 1000);
   setInterval(loadWeather, 15 * 60 * 1000);
@@ -1003,6 +1084,7 @@ function demoApi() {
     init: async () => ({ app: "NOVA", version: "1.3.0", about, settings, voices: [{ id: "tr-TR-AhmetNeural", name: "Ahmet (Türkçe, erkek)" }, { id: "tr-TR-EmelNeural", name: "Emel (Türkçe, kadın)" }], state: "listening", awake: true, mic, ready: true, timers: [{ id: 1, label: "Çay", end: Date.now() + 540000 }], update: { available: true, latest: "1.3.1" } }),
     send_text: async t => { addMsg("user", t); setState("thinking"); setTimeout(() => { addMsg("nova", "Bu bir önizleme. Gerçek uygulamada yanıtı Gemini ya da ChatGPT verir."); setState("listening"); }, 1200); },
     speech_done: async () => {}, stop_speaking: async () => {}, cancel_timer: async () => {},
+    contacts: async () => [], msg_send: async () => ({ ok: true, text: "Demo" }), msg_confirm: async () => true, share: async () => true,
     toggle_mic: async () => (mic = !mic), set_awake: async a => setState(a ? "listening" : "sleeping"),
     save_settings: async v => ({ settings: Object.assign(settings, v), ready: true }),
     test_brain: async () => ({ ok: true, text: "Önizleme modu." }),

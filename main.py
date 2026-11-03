@@ -30,6 +30,7 @@ from novaapp.listener import Listener, recognize  # noqa: E402
 from novaapp import server as ui  # noqa: E402
 from novaapp import updater, widgets  # noqa: E402
 from novaapp import chips  # noqa: E402
+from novaapp import social  # noqa: E402
 import datetime as dt  # noqa: E402
 
 
@@ -46,6 +47,7 @@ class Nova:
         self.speaking = threading.Event()
         self.busy = threading.Event()
         self._interrupted = False
+        self.pending = None      # onay bekleyen mesaj
         self.timers = {}
         self.calendar = widgets.Calendar()
         self.update_info = None
@@ -121,6 +123,8 @@ class Nova:
             try:
                 if source == "announce":
                     self.say(text)
+                elif source == "announce_send":
+                    self.message_send(text)
                 else:
                     self._process(source, text)
             except Exception as e:  # hiçbir hata NOVA'yı düşürmesin
@@ -193,6 +197,25 @@ class Nova:
             self.say(f"Beni Samet Şahin geliştirdi. Onu sosyal medyada {build_about(self.settings)['handle']} "
                      "olarak bulabilirsin.")
             return
+
+        # --- onay bekleyen mesaj var mı? ---
+        if self.pending:
+            p, self.pending = self.pending, None
+            if p.get("stage") == "text":
+                p["text"] = text[:1].upper() + text[1:]
+                p.pop("missing", None)
+                return self.message_flow(p)
+            if re.search(r"^(evet|gönder|tamam|olur|onayl\w*|paylaş|evet gönder|tabii)\b", n):
+                return self.message_send(p)
+            if re.search(r"^(hayır|iptal|vazgeç|gönderme|dur|boş ver)\b", n):
+                self.emit("msg_preview", hide=True)
+                return self.say("Tamam, göndermedim.")
+            self.emit("msg_preview", hide=True)
+
+        # --- mesaj gönderme / paylaşım ---
+        sm = social.parse(text, n, social.parse_contacts(self.settings.get("contacts")))
+        if sm:
+            return self.message_flow(sm)
 
         reply = commands.handle(text, self.settings)
         image = None
@@ -437,6 +460,35 @@ class Nova:
         self.listener.hold.clear()
         self.idle_state()
 
+    # ---------------- mesajlaşma ----------------
+    def message_flow(self, m):
+        plat = social.PLATFORMS[m["platform"]]
+        if m.get("missing") == "contact":
+            who = (m.get("guess") or "Bu kişi").capitalize()
+            self.emit("panel", name="messages")
+            return self.say(f"{who} kişilerimde kayıtlı değil. Ayarlar'daki Mesajlaşma bölümünden ekleyebilirsin.")
+        if m.get("missing") == "text" or not m.get("text"):
+            m["stage"] = "text"
+            self.pending = m
+            return self.say("Ne yazayım?" if m["platform"] != "x" else "Ne paylaşayım?")
+        if self.settings.get("msg_confirm"):
+            m["stage"] = "confirm"
+            self.pending = m
+            to = f"{m['contact']['name']} kişisine " if m.get("contact") else ""
+            self.emit("msg_preview", platform=m["platform"], platform_name=plat,
+                      to=m["contact"]["name"] if m.get("contact") else "", text=m["text"])
+            verb = "paylaşayım mı" if m["platform"] == "x" else "göndereyim mi"
+            return self.say(f"{social.FROM[m['platform']]} {to}şunu {verb}: {m['text']}")
+        return self.message_send(m)
+
+    def message_send(self, m):
+        self.emit("msg_preview", hide=True)
+        ok, msg = social.send(m["platform"], m.get("contact"), m["text"], self.settings)
+        log.info("Mesaj (%s → %s): %s", m["platform"], (m.get("contact") or {}).get("name", "-"), ok)
+        self.emit("msg_sent", ok=ok, platform=m["platform"], to=(m.get("contact") or {}).get("name", ""),
+                  text=m["text"])
+        return self.say(msg)
+
     def set_chip(self, cid):
         if cid not in chips.CHIPS:
             return False
@@ -502,6 +554,36 @@ class Api:
     def speech_done(self):
         self._n.speaking.clear()
         return True
+
+    def contacts(self):
+        return social.parse_contacts(self._n.settings.get("contacts"))
+
+    def msg_send(self, platform, to_name, text):
+        text = (text or "").strip()
+        if not text:
+            return {"ok": False, "text": "Mesaj boş."}
+        contact = next((c for c in social.parse_contacts(self._n.settings.get("contacts"))
+                        if c["name"] == to_name), None)
+        if platform != "x" and not contact:
+            return {"ok": False, "text": "Kişi seçilmedi."}
+        ok, msg = social.send(platform, contact, text, self._n.settings)
+        return {"ok": ok, "text": msg}
+
+    def msg_confirm(self, yes):
+        p, self._n.pending = self._n.pending, None
+        if not p:
+            return False
+        if yes:
+            self._n.jobs.put(("announce_send", p))
+        else:
+            self._n.emit("msg_preview", hide=True)
+        return True
+
+    def share(self, platform, text, url=""):
+        link = social.share_url(platform, text or "", url or "")
+        if link:
+            webbrowser.open(link, new=2)
+        return bool(link)
 
     def set_chip(self, cid):
         ok = self._n.set_chip(cid)

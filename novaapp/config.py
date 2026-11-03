@@ -43,6 +43,13 @@ DEFAULTS = {
     "chip_name_atlas": "",
     "chip_name_lyra": "",
     "chip_name_kronos": "",
+    # Mesajlaşma ve paylaşım
+    "contacts": "",                    # her satır: Ad = telefon = @telegram
+    "msg_confirm": True,               # göndermeden önce sesli onay iste
+    "msg_auto_send": True,             # sohbet açılınca Enter'a kendisi bassın
+    "msg_wait": 4.0,                   # uygulamanın açılmasını bekleme süresi (sn)
+    "tg_bot_token": "",                # isteğe bağlı: Telegram Bot ile arka planda gönderim
+    "show_brief": True,                # açılışta gündem bültenini göster
     # Müzik: youtube | ytmusic | spotify
     "music_source": "youtube",
     "sleep_words": "uyu, uyku moduna geç, beklemeye geç",

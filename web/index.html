@@ -37,6 +37,20 @@
   </div>
 </header>
 
+<nav class="menubar" id="menubar" aria-label="Menü">
+  <button data-menu="brief" class="hot"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/><circle cx="17" cy="14.5" r="1.4" fill="currentColor"/></svg><span>Gündem</span></button>
+  <button data-menu="news"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="15" rx="2"/><path d="M17 9h3v9a2 2 0 0 1-2 2M7 9h6M7 13h6M7 17h4"/></svg><span>Haberler</span></button>
+  <button data-menu="calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Takvim</span></button>
+  <button data-menu="timers"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span>Zaman</span> <i class="badge" id="timerBadge2" hidden></i></button>
+  <button data-menu="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Harita</span></button>
+  <button data-menu="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg><span>Notlar</span></button>
+  <button data-menu="messages"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg><span>Mesaj</span></button>
+  <button data-menu="chips"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>Çipler</span></button>
+  <button data-menu="help"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M9 9.5a3 3 0 1 1 3 3v1"/></svg><span>Komutlar</span></button>
+  <span class="mb-sp"></span>
+  <button data-open="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Ayarlar</span></button>
+  <button data-open="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span>Hakkında</span></button>
+</nav>
 <aside class="hud left">
   <section class="wx" id="wxBox">
     <h2>Hava · <span id="wxCity">—</span></h2>
@@ -63,11 +77,13 @@
 <main class="stage">
   <canvas id="core" aria-label="NOVA çekirdeği"></canvas>
   <section class="bulletin" id="bulletin" aria-label="Haber bülteni">
-    <div class="bl-head"><span class="live">CANLI</span><h2 id="blName">Gündem</h2><span class="sp"></span>
-      <button id="blRead">▶ Oku</button><button id="blPrev">‹</button><button id="blNext">›</button><button id="blClose">Kapat ✕</button></div>
+    <div class="bl-head"><span class="live">CANLI</span><h2 id="blName">Gündem</h2>
+      <div class="bl-cats" id="blCats"><button data-cat="gundem">Gündem</button><button data-cat="sondakika">Son dakika</button><button data-cat="dunya">Dünya</button><button data-cat="ekonomi">Ekonomi</button><button data-cat="spor">Spor</button><button data-cat="teknoloji">Teknoloji</button></div>
+      <span class="sp"></span>
+      <button id="blRead">▶ Oku</button><button id="blPrev">‹</button><button id="blNext">›</button><button id="blClose">✕</button></div>
     <article class="bl-hero" id="blHero">
       <div class="bl-img" id="blImg"><span class="src-mark" id="blMark"></span></div>
-      <div class="bl-body"><span class="bl-meta" id="blMeta"></span><h3 class="bl-title" id="blTitle"></h3><p class="bl-desc" id="blDesc"></p><span class="bl-open">Haberin tamamı için tıkla ↗</span></div>
+      <div class="bl-body"><span class="bl-meta" id="blMeta"></span><h3 class="bl-title" id="blTitle"></h3><p class="bl-desc" id="blDesc"></p><div class="bl-foot"><span class="bl-open">Haberin tamamı için tıkla ↗</span><span class="bl-share">Paylaş: <button data-share="x">X</button><button data-share="whatsapp">WhatsApp</button><button data-share="telegram">Telegram</button></span></div></div>
       <i class="bl-progress" id="blProg"></i>
     </article>
     <ol class="bl-list" id="blList"></ol>
@@ -145,6 +161,23 @@
     <ul class="notes" id="notesList"></ul>
   </section>
 
+  <!-- MESAJ -->
+  <section class="pane" data-pane="messages">
+    <div class="seg seg3 plat" id="msgPlat">
+      <label><input type="radio" name="mplat" value="whatsapp" checked><span>WhatsApp</span></label>
+      <label><input type="radio" name="mplat" value="telegram"><span>Telegram</span></label>
+      <label><input type="radio" name="mplat" value="x"><span>X</span></label>
+    </div>
+    <form class="inline-form" id="msgForm" autocomplete="off">
+      <select name="to" id="msgTo"></select>
+      <textarea name="text" rows="3" maxlength="1000" placeholder="Mesajın…" required></textarea>
+      <div class="row end"><span class="muted" id="msgHint"></span><button class="primary" id="msgBtn">Gönder</button></div>
+    </form>
+    <h3>Kişiler</h3>
+    <ul class="contacts" id="contactList"></ul>
+    <p class="chip-note">Sesle de olur: <q>WhatsApp'tan anneme geliyorum yaz</q>, <q>X'te paylaş: …</q>. Kişileri Ayarlar → Mesajlaşma'dan ekle.</p>
+  </section>
+
   <!-- ÇİPLER -->
   <section class="pane" data-pane="chips">
     <div class="chip-grid" id="chipGrid"></div>
@@ -178,6 +211,11 @@
 </aside>
 
 <section class="dialog">
+  <div class="msg-card" id="msgCard" hidden>
+    <span class="mc-plat" id="mcPlat"></span>
+    <div class="mc-body"><b id="mcTo"></b><p id="mcText"></p></div>
+    <button class="ghost" id="mcNo">İptal</button><button class="primary" id="mcYes">Gönder</button>
+  </div>
   <div id="transcript" aria-live="polite"></div>
   <form id="ask" autocomplete="off">
     <input id="askInput" placeholder="NOVA'ya yaz ya da konuş…" maxlength="2000">
@@ -259,6 +297,18 @@
       <label>TikTok kullanıcı adı <input name="tiktok_user"></label>
       <label>YouTube kullanıcı adı <input name="youtube_user"></label>
       <label>GitHub kullanıcı adı <input name="github_user"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Mesajlaşma</legend>
+      <label>Kişiler <textarea name="contacts" rows="4" placeholder="Annem = 0555 111 22 33 = @annem_telegram&#10;Ahmet = +90 532 000 11 22"></textarea></label>
+      <p class="hint">Her satıra bir kişi yaz: Ad = telefon = @telegram. Telefon WhatsApp için, @kullanıcı adı Telegram için kullanılır.</p>
+      <label class="check"><input type="checkbox" name="msg_confirm"> Göndermeden önce bana sor</label>
+      <label class="check"><input type="checkbox" name="msg_auto_send"> Sohbet açılınca Enter'a kendisi bassın (otomatik gönder)</label>
+      <label>Uygulamanın açılmasını bekleme (sn) <input type="number" name="msg_wait" min="2" max="15" step="0.5"></label>
+      <label>Telegram Bot anahtarı (isteğe bağlı) <input name="tg_bot_token" type="password" placeholder="123456:ABC…"></label>
+      <p class="hint">Bot anahtarı girersen ve kişinin Telegram alanına sayısal sohbet kimliği yazarsan, mesajlar pencere açmadan arka planda gider.</p>
+      <label class="check"><input type="checkbox" name="show_brief"> Açılışta gündem bültenini göster</label>
     </fieldset>
 
     <fieldset>

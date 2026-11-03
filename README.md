@@ -27,6 +27,15 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
   - **KRONOS:** Kırık prizma ve keskin çokgenler, kırmızı, soğuk ve az konuşan; metalik ses.
 - Sesle değiştirilebilir: "ATLAS'a geç", "LYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
 
+**Mesajlaşma ve paylaşım** (Mesaj sekmesi)
+- "WhatsApp'tan anneme geliyorum yaz" → NOVA önce sorar ("göndereyim mi?"), "evet" deyince sohbeti açıp mesajı gönderir.
+- "Ahmet'e Telegram'dan yarın görüşürüz mesajı gönder" → Telegram'da sohbeti açıp gönderir. İstersen Telegram Bot ile tamamen arka planda gönderebilir.
+- "X'te paylaş: NOVA 1.5 yayında" → X'te gönderi metni hazır açılır, Paylaş butonuna sen basarsın.
+- Kişiler Ayarlar → Mesajlaşma'da tutulur. Her satıra bir kişi yazılır: `Annem = 0555 111 22 33 = @annem_telegram`.
+- Haber bülteninden haberler tek tıkla X, WhatsApp ya da Telegram'da paylaşılabilir.
+
+**Üst menü:** Gündem, Haberler, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
+
 **Müzik**
 - "YouTube'da Duman çal", "Sezen Aksu şarkısını çal" ve "biraz müzik aç" komutları ilk videoyu doğrudan oynatır.
 - "Spotify'da Tarkan çal" komutu Spotify'da aramayı açar.

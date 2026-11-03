@@ -38,7 +38,7 @@ body{
   background:radial-gradient(1200px 800px at 50% 42%, var(--glow) 0%, var(--bg) 62%) fixed, var(--bg);
   color:var(--ink);font:15px/1.5 var(--sans);overflow:hidden;
   display:grid;grid-template-columns:minmax(230px,290px) 1fr clamp(330px,27vw,440px);
-  grid-template-rows:auto 1fr auto;grid-template-areas:"top top top" "left stage right" "left dialog right";
+  grid-template-rows:auto auto 1fr auto;grid-template-areas:"top top top" "menu menu menu" "left stage right" "left dialog right";
   -webkit-font-smoothing:antialiased;user-select:none;
 }
 button,input,select{font:inherit;color:inherit}
@@ -260,7 +260,7 @@ fieldset>*:not(legend){clear:both}
 
 /* ---------- dar pencere ---------- */
 @media (max-width:1100px){
-  body{grid-template-columns:1fr;grid-template-areas:"top" "stage" "dialog"}
+  body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto;grid-template-areas:"top" "menu" "stage" "dialog"}
   .hud,.hud.left{display:none}
   .dock{display:none;position:fixed;z-index:8;top:72px;right:12px;bottom:12px;width:min(420px,calc(100% - 24px));margin:0;background:var(--panel-solid)}
   body.dock-open .dock{display:flex}
@@ -335,3 +335,64 @@ body.bulletin-on .ticker{display:none}
   .bl-img{min-height:120px}
   .bl-list{grid-template-columns:1fr 1fr}
 }
+
+/* ---------- üst menü çubuğu ---------- */
+.menubar{grid-area:menu;position:relative;z-index:3;display:flex;align-items:center;gap:4px;padding:8px 22px;border-bottom:1px solid var(--line);background:rgba(8,10,20,.55);backdrop-filter:blur(10px);overflow-x:auto;scrollbar-width:none}
+.menubar::-webkit-scrollbar{display:none}
+.menubar button{position:relative;flex:none;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid transparent;border-radius:10px;background:none;color:var(--muted);font-size:13.5px;font-weight:500;cursor:pointer;transition:color .2s,background .2s,border-color .2s}
+.menubar button svg{width:17px;height:17px}
+.menubar button:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.menubar button.on{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent);background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.menubar button.hot{color:#04050b;background:var(--acc);font-weight:650}
+.menubar button.hot:hover{filter:brightness(1.1);color:#04050b;background:var(--acc)}
+.menubar .badge{position:absolute;top:2px;right:4px}
+.menubar .mb-sp{flex:1}
+.dock .tabs{display:none}
+.dock{margin-top:14px}
+.ico[data-open]{display:none}
+
+/* ---------- mesaj paneli ---------- */
+.plat{margin-bottom:10px}
+.contacts{list-style:none;margin:0;padding:0}
+.contacts li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.contacts li .av{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;color:#04050b;background:var(--acc)}
+.contacts li small{display:block;color:var(--dim);font-size:11.5px}
+.contacts li.empty{color:var(--muted);display:block}
+
+/* ---------- mesaj onay kartı ---------- */
+.msg-card{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px 14px;border:1px solid color-mix(in srgb,var(--acc) 50%,transparent);border-radius:14px;background:var(--panel-solid);box-shadow:0 10px 40px -10px color-mix(in srgb,var(--acc) 40%,transparent);animation:rise .3s ease-out}
+.msg-card[hidden]{display:none}
+.mc-plat{flex:none;font:700 11px var(--sans);letter-spacing:.12em;padding:6px 10px;border-radius:8px;color:#04050b;background:var(--pc,#25d366)}
+.mc-body{flex:1;min-width:0}
+.mc-body b{font-size:13px;color:var(--muted);font-weight:500}
+.mc-body p{margin:2px 0 0;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-card button{padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600}
+
+/* ---------- gösterişli bülten ---------- */
+.bl-cats{display:flex;gap:4px;margin-left:8px;overflow-x:auto;scrollbar-width:none}
+.bl-cats button{padding:5px 11px!important;border-radius:99px!important;font-size:12.5px!important;color:var(--muted)!important}
+.bl-cats button.on{color:#04050b!important;background:var(--acc)!important;border-color:var(--acc)!important}
+.bl-img{overflow:hidden}
+.bl-img .kb{position:absolute;inset:0;background-size:cover;background-position:center;animation:kenburns 14s ease-in-out infinite alternate}
+@keyframes kenburns{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.14) translate(-2%,-1.5%)}}
+.bl-body>*{animation:none}
+.bl-hero.swap .bl-body>*{animation:slidein .55s cubic-bezier(.2,.8,.2,1) both}
+.bl-hero.swap .bl-body>*:nth-child(2){animation-delay:.06s}
+.bl-hero.swap .bl-body>*:nth-child(3){animation-delay:.12s}
+.bl-hero.swap .bl-body>*:nth-child(4){animation-delay:.18s}
+@keyframes slidein{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.bl-num{position:absolute;right:22px;top:14px;font:800 64px var(--sans);line-height:1;color:color-mix(in srgb,var(--acc) 22%,transparent);pointer-events:none}
+.bl-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bl-foot .bl-open{margin:0}
+.bl-share{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.bl-share button{border:1px solid var(--line2);background:rgba(255,255,255,.03);color:var(--ink);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer}
+.bl-share button:hover{border-color:var(--acc);color:var(--acc)}
+.bl-hero{box-shadow:0 30px 80px -30px color-mix(in srgb,var(--acc) 45%,transparent)}
+.bl-hero::before{content:"";position:absolute;inset:-1px;border-radius:18px;padding:1px;background:linear-gradient(120deg,var(--acc),transparent 40%,transparent 60%,color-mix(in srgb,var(--acc) 60%,transparent));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:2}
+/* düzeltmeler */
+textarea{font:inherit;color:inherit}
+.bl-head button{white-space:nowrap}
+.bl-cats button{font-size:12px!important}
+.bl-body{position:relative;z-index:1}
+.bl-num{z-index:0}
+.row .muted,.muted{color:var(--muted);font-size:12.5px;flex:1}
