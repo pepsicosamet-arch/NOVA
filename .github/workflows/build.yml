@@ -1,0 +1,63 @@
+name: NOVA Windows derlemesi
+
+# Yeni sürüm yayınlamak için:  git tag v1.3.1  &&  git push origin v1.3.1
+# Bu iş EXE + kurulum dosyasını derler ve GitHub Releases'e ekler.
+# Kullanıcıların NOVA'sı açılışta yeni sürümü görür ve tek tıkla günceller.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sürüm numarasını etiketten al
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          (Get-Content novaapp/__init__.py) -replace 'VERSION = ".*"', "VERSION = `"$v`"" | Set-Content -Encoding utf8 novaapp/__init__.py
+          (Get-Content installer/nova.iss -Encoding utf8) -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"" | Set-Content -Encoding utf8BOM installer/nova.iss
+
+      - name: Paketleri yükle
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: NOVA.exe oluştur
+        run: >
+          pyinstaller --noconfirm --clean --windowed --name NOVA
+          --icon assets\nova.ico
+          --add-data "web;web" --add-data "assets;assets"
+          --collect-all _sounddevice_data
+          --collect-all _soundfile_data
+          main.py
+
+      - name: Inno Setup kur
+        run: choco install innosetup -y --no-progress
+
+      - name: Kurulum dosyası oluştur
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\nova.iss'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-Windows-Setup
+          path: Output/*.exe
+
+      - name: GitHub sürümü (Release) oluştur
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Output/*.exe
+          generate_release_notes: true
