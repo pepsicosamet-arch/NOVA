@@ -8,9 +8,9 @@ def _clean(user: str) -> str:
 
 
 def build(settings=None) -> dict:
-    get = (lambda k: settings.get(k)) if settings else (lambda k: "")
-    ig, tt, yt = (_clean(get(k)) for k in ("instagram_user", "tiktok_user", "youtube_user"))
-    gh = (get("github_user") or "pepsicosamet-arch").strip().lstrip("@").strip("/")
+    # Hesaplar sabittir; Ayarlar'dan değiştirilemez.
+    ig = tt = yt = "xsametsahinx"
+    gh = "pepsicosamet-arch"
     return {
         "app": APP_NAME,
         "version": VERSION,

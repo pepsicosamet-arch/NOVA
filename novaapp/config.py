@@ -19,11 +19,6 @@ DEFAULTS = {
     "custom_url": "http://localhost:11434/v1",
     "custom_key": "",
     "custom_model": "llama3.1",
-    # Hakkında bölümündeki hesaplar (kullanıcı adları)
-    "instagram_user": "xsametsahinx",
-    "tiktok_user": "xsametsahinx",
-    "youtube_user": "xsametsahinx",
-    "github_user": "pepsicosamet-arch",
     "web_search": True,                # Gemini: Google Arama ile güncel bilgi
     "voice": "tr-TR-AhmetNeural",
     "rate": 0,                         # yüzde, -40..+40
@@ -49,7 +44,7 @@ DEFAULTS = {
     "msg_auto_send": True,             # sohbet açılınca Enter'a kendisi bassın
     "msg_wait": 4.0,                   # uygulamanın açılmasını bekleme süresi (sn)
     "tg_bot_token": "",                # isteğe bağlı: Telegram Bot ile arka planda gönderim
-    "show_brief": True,                # açılışta gündem bültenini göster
+    "show_brief": False,               # (kullanılmıyor) haberler ana ekranda kendiliğinden açılmaz
     # Müzik: youtube | ytmusic | spotify
     "music_source": "youtube",
     "sleep_words": "uyu, uyku moduna geç, beklemeye geç",

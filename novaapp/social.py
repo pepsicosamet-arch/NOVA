@@ -199,9 +199,12 @@ def send(platform, contact, text, settings, wait=None):
     wait = wait or float(settings.get("msg_wait") or 4)
     name = contact["name"] if contact else ""
 
+    if contact and contact.get("search") and platform in ("whatsapp", "telegram"):
+        return send_by_search(platform, name, text, auto, wait)
+
     if platform == "whatsapp":
         if not contact or not contact.get("phone"):
-            return False, f"{name or 'Bu kişi'} için telefon numarası kayıtlı değil. Ayarlar → Mesajlaşma'dan ekle."
+            return send_by_search(platform, name, text, auto, wait)
         q = urllib.parse.quote(text)
         desktop = installed()["whatsapp"] and _open(f"whatsapp://send?phone={contact['phone']}&text={q}")
         if not desktop:
@@ -272,6 +275,50 @@ def send(platform, contact, text, settings, wait=None):
     return False, "Bu platformu tanımıyorum."
 
 
+def send_by_search(platform, name, text, auto, wait):
+    """Numara gerekmeden: uygulamayı aç, kişiyi uygulamanın kendi aramasında bul, mesajı yaz, gönder."""
+    apps = installed()
+    if not apps.get(platform):
+        if platform == "whatsapp":
+            webbrowser.open("https://web.whatsapp.com/")
+            wait += 8
+            where = "WhatsApp Web"
+        else:
+            return False, ("Telegram uygulaması bu bilgisayarda kurulu değil. Telegram Desktop'u kurarsan "
+                           "kişinin adıyla doğrudan gönderebilirim.")
+    else:
+        _open("whatsapp:" if platform == "whatsapp" else "tg://")
+        where = "WhatsApp" if platform == "whatsapp" else "Telegram"
+    if not IS_WIN:
+        return False, "Otomatik gönderme yalnızca Windows'ta çalışır."
+    title = "WhatsApp" if platform == "whatsapp" else "Telegram"
+
+    def go():
+        time.sleep(wait)
+        focus_window(title)
+        time.sleep(0.4)
+        if platform == "telegram":
+            _keys(0x1B); time.sleep(0.2); _keys(0x1B); time.sleep(0.2)   # Esc: sohbet listesine dön
+        _keys(VK_CONTROL, 0x46)                    # Ctrl+F: sohbet ara
+        time.sleep(0.5)
+        _keys(VK_CONTROL, 0x41)                    # Ctrl+A: eski aramayı sil
+        set_clipboard(name)
+        _keys(VK_CONTROL, VK_V)
+        time.sleep(1.8)                            # sonuçların gelmesini bekle
+        _keys(VK_RETURN)                           # ilk sonucu aç
+        time.sleep(1.4)
+        set_clipboard(text)
+        _keys(VK_CONTROL, VK_V)
+        if auto:
+            time.sleep(0.5)
+            _keys(VK_RETURN)
+
+    threading.Thread(target=go, daemon=True).start()
+    if auto:
+        return True, f"{where} açılıyor; {name} sohbetini bulup gönderiyorum. Birkaç saniye bilgisayara dokunma."
+    return True, f"{where} açılıyor; {name} sohbetine mesajı yazıyorum, göndermek için Enter'a bas."
+
+
 def share_url(platform, text, url=""):
     full = f"{text} {url}".strip()
     if platform == "x":
@@ -284,6 +331,39 @@ def share_url(platform, text, url=""):
 
 
 # ---------------- sesli komut ayrıştırma ----------------
+def _dative_root(w):
+    """anneme → annem, ahmet'e → ahmet, babaya → baba, ömrüm → ömrüm"""
+    w = w.strip(".,!?")
+    if "'" in w:
+        return w.split("'")[0]
+    if re.search(r"[aeıioöuü](ye|ya)$", w):
+        return w[:-2]
+    if re.search(r"[^aeıioöuü][ea]$", w) and len(w) > 3:
+        return w[:-1]
+    return w
+
+
+def recipient(n, platform):
+    """Mesajın kime gideceğini cümleden çıkar: ('Annem', 'anneme')."""
+    m = re.search(r"(\S+(?:\s\S+)?)\s+kişisine\b", n)
+    if m:
+        words = m.group(1).split()
+        words = [w for w in words if not re.match(PLAT_RE[platform], w)]
+        name = " ".join(words[-1:])
+        return name.capitalize(), name
+    words = n.split()
+    plat_i = next((i for i, w in enumerate(words) if re.match(PLAT_RE[platform], w)), None)
+    for w in words:                                 # 'ahmet'e' gibi kesme işaretli yönelme eki
+        if re.search(r"'(e|a|ye|ya)$", w) and not re.match(PLAT_RE[platform], w):
+            return _dative_root(w).capitalize(), w
+    if plat_i is not None:                          # platformun hemen önündeki/arkasındaki kelime
+        for j in (plat_i - 1, plat_i + 1):
+            if 0 <= j < len(words) and re.search(r"(e|a)$", words[j]) and words[j] not in ("bir", "da", "de"):
+                return _dative_root(words[j]).capitalize(), words[j]
+    return "", ""
+
+
+
 PLAT_RE = {
     "whatsapp": r"\b(whatsapp|vatsap|watsap|wp)[\w']*",
     "telegram": r"\btelegram[\w']*",
@@ -327,12 +407,16 @@ def parse(text: str, n: str, contacts):
     if not body:
         return {"platform": platform, "contact": contact, "text": "", "missing": "text"}
     if platform != "x" and not contact:
-        g = re.search(r"(\w+)'?\s+kişisine\b", n) or re.search(r"(?:^|\s)(\w+)'(?:e|a|ye|ya)\b", n) or \
-            re.search(r"(?:^|\s)(\w+?)(?:ye|ya|e|a)\s+(?:whatsapp|telegram|wp)", n)
-        guess = g.group(1) if g else ""
-        body = re.sub(r"\bkişisine\b", " ", body)
-        body = re.sub(rf"(^|\s){re.escape(guess)}\S*", " ", body).strip() if guess else body
-        return {"platform": platform, "contact": None, "guess": guess, "text": body, "missing": "contact"}
+        guess, word = recipient(n, platform)
+        if word:
+            body = re.sub(rf"(^|\s){re.escape(word)}(\s|$)", " ", " " + body + " ").strip()
+        body = re.sub(r"\bkişisine\b", " ", body).strip()
+        body = re.sub(r"^\s*'\w*\s*", "", body)
+        if not guess:
+            return {"platform": platform, "contact": None, "text": body, "missing": "contact"}
+        contact = {"name": guess, "search": True}
+        if not body:
+            return {"platform": platform, "contact": contact, "text": "", "missing": "text"}
     # kullanıcının yazdığı büyük/küçük harfleri geri getir
     low = text.replace("İ", "i").lower().replace("’", "'")
     i = low.find(body)

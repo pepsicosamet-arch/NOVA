@@ -44,6 +44,7 @@
   <button data-menu="timers"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span>Zaman</span> <i class="badge" id="timerBadge2" hidden></i></button>
   <button data-menu="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Harita</span></button>
   <button data-menu="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg><span>Notlar</span></button>
+  <button data-menu="tv"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 2l4 4 4-4M7 22h10"/></svg><span>Canlı TV</span></button>
   <button data-menu="messages"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg><span>Mesaj</span></button>
   <button data-menu="chips"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>Çipler</span></button>
   <button data-menu="help"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M9 9.5a3 3 0 1 1 3 3v1"/></svg><span>Komutlar</span></button>
@@ -88,7 +89,6 @@
     </article>
     <ol class="bl-list" id="blList"></ol>
   </section>
-  <div class="ticker" id="ticker" hidden><span class="tk-label">SON DAKİKA</span><div class="tk-win"><div class="tk-track" id="tkTrack"></div></div></div>
   <div class="core-label"><span id="coreLabel">Hazırlanıyor</span></div>
 </main>
 
@@ -161,6 +161,12 @@
     <ul class="notes" id="notesList"></ul>
   </section>
 
+  <!-- CANLI TV -->
+  <section class="pane" data-pane="tv">
+    <div id="tvGrid"></div>
+    <p class="chip-note">Kanallar kendi resmî canlı yayın sayfalarında, ayrı bir pencerede açılır. Sesle de olur: <q>TRT 1'i aç</q>, <q>Habertürk canlı</q>.</p>
+  </section>
+
   <!-- MESAJ -->
   <section class="pane" data-pane="messages">
     <div class="seg seg3 plat" id="msgPlat">
@@ -169,13 +175,12 @@
       <label><input type="radio" name="mplat" value="x"><span>X</span></label>
     </div>
     <form class="inline-form" id="msgForm" autocomplete="off">
-      <select name="to" id="msgTo"></select>
+      <input name="to" id="msgTo" placeholder="Kime? (uygulamada kayıtlı adı)" maxlength="60">
       <textarea name="text" rows="3" maxlength="1000" placeholder="Mesajın…" required></textarea>
       <div class="row end"><span class="muted" id="msgHint"></span><button class="primary" id="msgBtn">Gönder</button></div>
     </form>
-    <h3>Kişiler</h3>
-    <ul class="contacts" id="contactList"></ul>
-    <p class="chip-note">Sesle de olur: <q>WhatsApp'tan anneme geliyorum yaz</q>, <q>X'te paylaş: …</q>. Kişileri Ayarlar → Mesajlaşma'dan ekle.</p>
+    <p class="chip-note">Numara gerekmez: NOVA uygulamayı açar, kişiyi uygulamanın kendi aramasında bulur ve mesajı gönderir. Kişinin adını telefonunda/WhatsApp'ta kayıtlı olduğu gibi yaz.<br>Sesle: <q>WhatsApp'tan Ahmet'e akşam görüşürüz yaz</q> · <q>X'te paylaş: …</q></p>
+    <p class="chip-note" id="appsInfo"></p>
   </section>
 
   <!-- ÇİPLER -->
@@ -191,7 +196,11 @@
       <li><q>Son dakika haberlerini oku</q> · <q>haberleri göster</q></li>
       <li><q>YouTube'da Duman çal</q> · <q>Spotify'da Tarkan çal</q></li>
       <li><q>Sezen Aksu şarkısını çal</q> · <q>biraz müzik aç</q></li>
-      <li><q>ATLAS'a geç</q> · <q>LYRA moduna geç</q> · <q>çipi değiştir</q></li>
+      <li><q>ATLAS'a geç</q> · <q>LAYRA moduna geç</q> · <q>çipi değiştir</q></li>
+      <li><q>TRT 1'i aç</q> · <q>canlı TV aç</q></li>
+      <li><q>Son depremler</q> · <q>Akşam ezanı ne zaman?</q></li>
+      <li><q>25 çarpı 4 kaç eder</q> · <q>200'ün yüzde 15'i kaç</q></li>
+      <li><q>Panodakini oku</q> · <q>Bilgisayarı kapat</q></li>
       <li><q>Yarın saat 15:30 dişçi randevusu takvime ekle</q></li>
       <li><q>Bugün neler var?</q></li>
       <li><q>Saat 7'de beni uyandır</q></li>
@@ -291,24 +300,14 @@
       <div class="row"><button type="button" class="ghost" id="btnUpd">Şimdi denetle</button><span class="hint" id="updOut"></span></div>
     </fieldset>
 
-    <fieldset>
-      <legend>Hakkında · hesapların</legend>
-      <label>Instagram kullanıcı adı <input name="instagram_user"></label>
-      <label>TikTok kullanıcı adı <input name="tiktok_user"></label>
-      <label>YouTube kullanıcı adı <input name="youtube_user"></label>
-      <label>GitHub kullanıcı adı <input name="github_user"></label>
-    </fieldset>
 
     <fieldset>
       <legend>Mesajlaşma</legend>
-      <label>Kişiler <textarea name="contacts" rows="4" placeholder="Annem = 0555 111 22 33 = @annem_telegram&#10;Ahmet = +90 532 000 11 22"></textarea></label>
-      <p class="hint">Her satıra bir kişi yaz: Ad = telefon = @telegram. Telefon WhatsApp için, @kullanıcı adı Telegram için kullanılır.</p>
       <label class="check"><input type="checkbox" name="msg_confirm"> Göndermeden önce bana sor</label>
       <label class="check"><input type="checkbox" name="msg_auto_send"> Sohbet açılınca Enter'a kendisi bassın (otomatik gönder)</label>
       <label>Uygulamanın açılmasını bekleme (sn) <input type="number" name="msg_wait" min="2" max="15" step="0.5"></label>
       <label>Telegram Bot anahtarı (isteğe bağlı) <input name="tg_bot_token" type="password" placeholder="123456:ABC…"></label>
       <p class="hint">Bot anahtarı girersen ve kişinin Telegram alanına sayısal sohbet kimliği yazarsan, mesajlar pencere açmadan arka planda gider.</p>
-      <label class="check"><input type="checkbox" name="show_brief"> Açılışta gündem bültenini göster</label>
     </fieldset>
 
     <fieldset>
@@ -316,7 +315,7 @@
       <label class="check"><input type="checkbox" name="chip_voice"> Her çip kendi sesini ve ses efektini kullansın</label>
       <label>1. çip adı <input name="chip_name_nova" placeholder="NOVA"></label>
       <label>2. çip adı <input name="chip_name_atlas" placeholder="ATLAS"></label>
-      <label>3. çip adı <input name="chip_name_lyra" placeholder="LYRA"></label>
+      <label>3. çip adı <input name="chip_name_lyra" placeholder="LAYRA"></label>
       <label>4. çip adı <input name="chip_name_kronos" placeholder="KRONOS"></label>
       <p class="hint">Ad yalnızca çipin adını değiştirir; tasarımı, sesi ve kişiliği aynı kalır. Adlar uyandırma kelimesi olarak da çalışır.</p>
     </fieldset>

@@ -31,6 +31,7 @@ from novaapp import server as ui  # noqa: E402
 from novaapp import updater, widgets  # noqa: E402
 from novaapp import chips  # noqa: E402
 from novaapp import social  # noqa: E402
+from novaapp import extras, tv  # noqa: E402
 import datetime as dt  # noqa: E402
 
 
@@ -201,22 +202,16 @@ class Nova:
         # --- onay bekleyen mesaj var mı? ---
         if self.pending:
             p, self.pending = self.pending, None
-            if p.get("stage") == "number":
-                digits = social.normalize_phone(text)
-                if len(digits) < 11:
-                    p["tries"] = p.get("tries", 0) + 1
-                    if p["tries"] < 2:
-                        self.pending = p
-                        return self.say("Numarayı anlayamadım. Rakam rakam tekrar söyler misin?")
-                    return self.say("Numarayı alamadım. Kişiyi Ayarlar → Mesajlaşma'dan ekleyebilirsin.")
-                name = (p.get("guess") or "Kişi").capitalize()
-                raw = "\n".join(l for l in (self.settings.get("contacts") or "").splitlines()
-                                 if l.strip() and not ("=" not in l and social.normalize_phone(l) == digits)).rstrip()
-                self.settings.update({"contacts": (raw + "\n" if raw else "") + f"{name} = {digits}"})
-                p["contact"] = {"name": name, "phone": digits, "tg": ""}
+            if p.get("stage") == "to":
+                who = social._dative_root(n.split()[0] if len(n.split()) == 1 else n).strip()
+                p["contact"] = {"name": who[:1].upper() + who[1:], "search": True}
                 p.pop("missing", None)
-                self.say(f"{name} kişilerime kaydedildi.", record=True)
                 return self.message_flow(p)
+            if p.get("stage") == "power":
+                if re.search(r"^(evet|tamam|olur|onayl\w*|kapat|başlat|tabii)\b", n):
+                    extras.power_do(p["kind"])
+                    return self.say("Tamam. İptal etmek için 15 saniye içinde 'iptal' de." if p["kind"] in ("shutdown", "restart") else "Tamam.")
+                return self.say("Peki, vazgeçtim.")
             if p.get("stage") == "text":
                 p["text"] = text[:1].upper() + text[1:]
                 p.pop("missing", None)
@@ -232,6 +227,34 @@ class Nova:
         sm = social.parse(text, n, social.parse_contacts(self.settings.get("contacts")))
         if sm:
             return self.message_flow(sm)
+
+        # --- canlı TV ---
+        if re.search(r"\b(canlı|izle|aç|kanal|tv|televizyon)", n) and not re.search(r"youtube|spotify", n):
+            ch = tv.find(n)
+            if ch and re.search(r"aç|izle|canlı|geç|koy|$", n):
+                tv.open_channel(ch[0])
+                return self.say(f"{ch[1]} canlı yayını açılıyor.")
+            if re.search(r"canlı (tv|televizyon|yayın)|televizyon aç|tv aç", n):
+                self.emit("panel", name="tv")
+                return self.say("Canlı TV kanalları ekranda. Hangisini açayım?")
+        # --- güç komutları (onaylı) ---
+        if re.fullmatch(r"(iptal|kapatmayı iptal et|vazgeç)", n):
+            extras.power_cancel()
+        kind = extras.power_intent(n)
+        if kind:
+            self.pending = {"stage": "power", "kind": kind}
+            return self.say(extras.POWER[kind][0][:1].upper() + extras.POWER[kind][0][1:] + "?")
+        # --- deprem, namaz vakti, hesap, pano ---
+        if re.search(r"deprem", n):
+            return self.say(extras.earthquake_reply(n))
+        if re.search(r"namaz|ezan|vakitler|iftar|sahur", n):
+            return self.say(extras.prayer_reply(n, self.settings.get("city") or "İstanbul"))
+        r = extras.calc(n)
+        if r:
+            return self.say(r)
+        if re.search(r"pano(daki|dakini|yu)? (oku|ne var)|kopyaladığım\w* (oku|ne)", n):
+            clip = extras.clipboard_text().strip()
+            return self.say(clip[:600] if clip else "Pano boş görünüyor.")
 
         reply = commands.handle(text, self.settings)
         image = None
@@ -479,13 +502,10 @@ class Nova:
     # ---------------- mesajlaşma ----------------
     def message_flow(self, m):
         plat = social.PLATFORMS[m["platform"]]
-        if m.get("missing") == "contact":
-            who = (m.get("guess") or "").capitalize()
-            if not who:
-                return self.say("Kime göndereyim? Kişinin adını ya da numarasını söyle.")
-            m["stage"] = "number"
+        if m["platform"] != "x" and not m.get("contact"):
+            m["stage"] = "to"
             self.pending = m
-            return self.say(f"{who} kişilerimde yok. Numarası ne? Söylersen kaydedip göndereyim.")
+            return self.say("Kime göndereyim? Uygulamada kayıtlı olduğu adı söyle.")
         if m.get("missing") == "text" or not m.get("text"):
             m["stage"] = "text"
             self.pending = m
@@ -559,7 +579,7 @@ class Api:
                 "timers": [{"id": i["id"], "label": i["label"], "end": int(i["end"] * 1000)}
                            for i in sorted(n.timers.values(), key=lambda i: i["end"])],
                 "update": n.update_info if n.update_info and n.update_info.get("available") else None,
-                "chip": chips.get(n.settings), "chips": chips.public(n.settings),
+                "chip": chips.get(n.settings), "chips": chips.public(n.settings), "tv": tv.public(),
                 "voices": VOICES, "state": n.state, "awake": n.awake, "mic": n.listener.enabled.is_set(),
                 "ready": n.brain.ready()}
 
@@ -577,6 +597,10 @@ class Api:
     def contacts(self):
         return social.parse_contacts(self._n.settings.get("contacts"))
 
+    def tv_open(self, cid):
+        ch = tv.open_channel(cid)
+        return {"ok": bool(ch), "name": ch[1] if ch else ""}
+
     def apps(self):
         try:
             return social.installed()
@@ -587,10 +611,10 @@ class Api:
         text = (text or "").strip()
         if not text:
             return {"ok": False, "text": "Mesaj boş."}
-        contact = next((c for c in social.parse_contacts(self._n.settings.get("contacts"))
-                        if c["name"] == to_name), None)
+        to_name = (to_name or "").strip()
+        contact = {"name": to_name, "search": True} if to_name else None
         if platform != "x" and not contact:
-            return {"ok": False, "text": "Kişi seçilmedi."}
+            return {"ok": False, "text": "Kime gönderileceğini yaz."}
         ok, msg = social.send(platform, contact, text, self._n.settings)
         return {"ok": ok, "text": msg}
 

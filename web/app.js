@@ -412,21 +412,9 @@ const PLAT_NAME = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
 function msgPlat() { return (document.querySelector("[name=mplat]:checked") || {}).value || "whatsapp"; }
 let apps = {};
 async function loadContacts() {
-  contacts = await api.contacts() || [];
   apps = await api.apps() || {};
-  const sel = $("#msgTo"); sel.innerHTML = "";
-  for (const c of contacts) sel.add(new Option(c.name, c.name));
-  const ul = $("#contactList"); ul.innerHTML = "";
-  if (!contacts.length) ul.innerHTML = '<li class="empty">Henüz kişi yok. Ayarlar → Mesajlaşma\'dan ekle.</li>';
-  for (const c of contacts) {
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="av"></span><span><span class="nm"></span><small></small></span>';
-    li.querySelector(".av").textContent = c.name.slice(0, 1).toUpperCase();
-    li.querySelector(".nm").textContent = c.name;
-    li.querySelector("small").textContent = [c.phone && "+" + c.phone, c.tg && "@" + c.tg].filter(Boolean).join(" · ") || "bilgi yok";
-    li.onclick = () => { $("#msgTo").value = c.name; $("#msgForm [name=text]").focus(); };
-    ul.appendChild(li);
-  }
+  const names = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
+  $("#appsInfo").textContent = "Bu bilgisayarda: " + Object.keys(names).map(k => `${names[k]} ${apps[k] ? "uygulaması ✓" : "(web)"}`).join(" · ");
   msgPlatChanged();
 }
 function msgPlatChanged() {
@@ -458,17 +446,24 @@ function showMsgPreview(ev) {
 $("#mcYes").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(true); };
 $("#mcNo").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(false); };
 
-/* ---------- alt haber bandı ---------- */
-async function loadTicker() {
-  const d = await api.get_news("sondakika");
-  const items = (d && d.items && d.items.length ? d.items : []).slice(0, 10);
-  if (!items.length) { $("#ticker").hidden = true; return; }
-  const track = $("#tkTrack"); track.innerHTML = "";
-  for (const rep of [0, 1]) for (const n of items) {      // iki kez: kesintisiz kayma
-    const sp = document.createElement("span"); sp.textContent = n.title; track.appendChild(sp);
+/* ---------- canlı TV ---------- */
+function renderTv(list) {
+  const box = $("#tvGrid"); if (!box) return;
+  box.innerHTML = "";
+  const groups = [...new Set(list.map(c => c.group))];
+  for (const g of groups) {
+    const h = document.createElement("h3"); h.textContent = g; box.appendChild(h);
+    const grid = document.createElement("div"); grid.className = "tv-grid";
+    for (const c of list.filter(x => x.group === g)) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tv-card"; b.style.setProperty("--tc", c.color);
+      b.innerHTML = '<span class="tv-live">● CANLI</span><b></b>';
+      b.querySelector("b").textContent = c.name;
+      b.onclick = async () => { const r = await api.tv_open(c.id); toast(r && r.ok ? `📺 ${r.name} açılıyor` : "Kanal açılamadı.", r && r.ok ? "" : "error"); };
+      grid.appendChild(b);
+    }
+    box.appendChild(grid);
   }
-  $("#ticker").hidden = false;
-  $("#ticker").onclick = () => showBulletin({ category: "sondakika", name: "Son dakika", items });
 }
 
 /* ---------- çipler ---------- */
@@ -1064,9 +1059,8 @@ whenReady().then(async a => {
   let tab = "news"; try { tab = localStorage.getItem("nova.tab") || "news"; } catch (e) {}
   selectTab(tab);
   calEvents = await api.cal_list() || []; renderCal();
-  if (info.settings.show_brief) setTimeout(() => openBrief("gundem"), 600);
-  loadWeather(); loadRates(); loadTicker();
-  setInterval(loadTicker, 10 * 60 * 1000);
+  loadWeather(); loadRates();
+  renderTv(info.tv || []);
   setInterval(loadWeather, 15 * 60 * 1000);
   setInterval(loadRates, 10 * 60 * 1000);
   setInterval(() => { if (activeTab === "news") loadNews(newsCat); }, 10 * 60 * 1000);

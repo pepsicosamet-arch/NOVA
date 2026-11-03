@@ -396,3 +396,10 @@ textarea{font:inherit;color:inherit}
 .bl-body{position:relative;z-index:1}
 .bl-num{z-index:0}
 .row .muted,.muted{color:var(--muted);font-size:12.5px;flex:1}
+/* ---------- canlı TV ---------- */
+.tv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tv-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:6px;height:74px;padding:10px 12px;border:1px solid var(--line2);border-radius:12px;cursor:pointer;color:#fff;text-align:left;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--tc) 70%,#0a0d1a),#0a0d1a 120%);transition:transform .2s,box-shadow .2s}
+.tv-card:hover{transform:translateY(-2px);box-shadow:0 10px 30px -10px var(--tc)}
+.tv-card b{font-size:16px;letter-spacing:.02em;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+.tv-live{position:absolute;top:8px;right:10px;font:700 9.5px var(--sans);letter-spacing:.12em;color:#fff;background:rgba(0,0,0,.35);padding:2px 6px;border-radius:5px}
+.tv-live{animation:blink 2s infinite}

@@ -23,20 +23,28 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - Dört ayrı kişilik var, her birinin kendi tasarımı, rengi, sesi, ses efekti ve konuşma tarzı var:
   - **NOVA:** Yıldız çekirdek, mavi, samimi.
   - **ATLAS:** Dönen tel kafes küre, altın rengi, sakin ve resmi uşak; derin ses ve yapay zekâ tınısı.
-  - **LYRA:** Ses dalgası çiçeği, pembe, neşeli; kadın sesi.
+  - **LAYRA:** Ses dalgası çiçeği, pembe, neşeli; kadın sesi.
   - **KRONOS:** Kırık prizma ve keskin çokgenler, kırmızı, soğuk ve az konuşan; metalik ses.
-- Sesle değiştirilebilir: "ATLAS'a geç", "LYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
+- Sesle değiştirilebilir: "ATLAS'a geç", "LAYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
 
 **Mesajlaşma ve paylaşım** (Mesaj sekmesi)
 - "WhatsApp'tan anneme geliyorum yaz" → NOVA önce sorar ("göndereyim mi?"), "evet" deyince sohbeti açıp mesajı gönderir.
 - "Ahmet'e Telegram'dan yarın görüşürüz mesajı gönder" → Telegram'da sohbeti açıp gönderir. İstersen Telegram Bot ile tamamen arka planda gönderebilir.
 - "X'te paylaş: NOVA 1.5 yayında" → X'te gönderi metni hazır açılır, Paylaş butonuna sen basarsın.
 - PC'de WhatsApp, Telegram ya da X uygulaması kuruluysa NOVA onu kullanır; kurulu değilse web sürümünü açar.
-- Tanımadığı bir kişiye mesaj istenirse NOVA numarasını sorar, kişilere kaydeder ve gönderir. Doğrudan numara da söylenebilir: "WhatsApp'tan 0505 123 45 67'ye selam yaz".
-- Kişiler Ayarlar → Mesajlaşma'da tutulur. Her satıra bir kişi yazılır: `Annem = 0555 111 22 33 = @annem_telegram`.
+- Numara gerekmez: NOVA uygulamayı açar, kişiyi uygulamanın kendi aramasında adıyla bulur ve mesajı gönderir.
 - Haber bülteninden haberler tek tıkla X, WhatsApp ya da Telegram'da paylaşılabilir.
 
-**Üst menü:** Gündem, Haberler, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
+**Üst menü:** Gündem, Haberler, Canlı TV, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
+
+**Canlı TV:** TRT 1, ATV, Show TV, Star TV, Kanal D, NOW, TV8, Kanal 7, TRT Haber, NTV, Habertürk, CNN Türk, A Haber, Halk TV, Sözcü TV, tv100, TRT Spor ve TRT Çocuk. Kanallar kendi resmî canlı yayın sayfalarında, ayrı bir pencerede açılır. Sesle de olur: "TRT 1'i aç".
+
+**Diğer**
+- "Son depremler" → AFAD verisinden son depremleri söyler.
+- "Akşam ezanı ne zaman?" ya da "namaz vakitleri" → Diyanet hesabıyla bugünkü vakitleri söyler.
+- "25 çarpı 4 kaç eder", "200'ün yüzde 15'i kaç" → hızlı hesap yapar.
+- "Panodakini oku" → kopyaladığın metni sesli okur.
+- "Bilgisayarı kapat / yeniden başlat / uyut" → önce onay ister; kapatmayı 15 saniye içinde "iptal" diyerek durdurabilirsin.
 
 **Müzik**
 - "YouTube'da Duman çal", "Sezen Aksu şarkısını çal" ve "biraz müzik aç" komutları ilk videoyu doğrudan oynatır.
@@ -46,7 +54,6 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 **Haber bülteni**
 - "Haberleri göster" ya da "son dakika haberlerini oku" dediğinde ekranda büyük, görselli bir bülten açılır.
 - NOVA haberleri okurken okuduğu başlık öne çıkar.
-- Ekranın üstünde kayan bir son dakika bandı var.
 
 **Sesli komut örnekleri**
 - "Nova uyan" · "uyu"

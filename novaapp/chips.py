@@ -21,12 +21,12 @@ CHIPS = {
         "greeting": "ATLAS çevrimiçi. Tüm sistemler hazır, efendim.",
     },
     "lyra": {
-        "name": "LYRA",
+        "name": "LAYRA",
         "tagline": "Ses dalgası çiçeği · neşeli yardımcı",
         "voice": "tr-TR-EmelNeural", "pitch": 4, "rate": 4, "fx": "soft",
         "persona": ("Neşeli, pratik ve hızlı bir yardımcısın. Doğrudan konuya girersin, "
                     "gerektiğinde kısa bir şakayla ortamı yumuşatırsın."),
-        "greeting": "LYRA burada! Ne yapıyoruz bugün?",
+        "greeting": "LAYRA burada! Ne yapıyoruz bugün?",
     },
     "kronos": {
         "name": "KRONOS",
@@ -76,8 +76,9 @@ def public(settings):
 
 def find(settings, text_norm: str):
     """Metinde geçen çip adını bul (ör. 'atlas'a geç')."""
+    aliases = {"lyra": ["layra", "lyra", "leyra", "lira"]}
     for cid in ORDER:
-        for n in {name(settings, cid).lower(), CHIPS[cid]["name"].lower()}:
+        for n in {name(settings, cid).lower(), CHIPS[cid]["name"].lower(), *aliases.get(cid, [])}:
             if n and n in text_norm:
                 return cid
     return None
