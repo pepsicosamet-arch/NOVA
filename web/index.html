@@ -40,7 +40,6 @@
 
 <nav class="menubar" id="menubar" aria-label="Menü">
   <button data-menu="brief" class="hot"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/><circle cx="17" cy="14.5" r="1.4" fill="currentColor"/></svg><span>Gündem</span></button>
-  <button data-menu="news"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="15" rx="2"/><path d="M17 9h3v9a2 2 0 0 1-2 2M7 9h6M7 13h6M7 17h4"/></svg><span>Haberler</span></button>
   <button data-menu="calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Takvim</span></button>
   <button data-menu="timers"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span>Zaman</span> <i class="badge" id="timerBadge2" hidden></i></button>
   <button data-menu="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Harita</span></button>
@@ -80,6 +79,17 @@
 
 <main class="stage">
   <canvas id="core" aria-label="NOVA çekirdeği"></canvas>
+  <section class="mapview" id="mapview" aria-label="Harita">
+    <div class="mv-head">
+      <form class="mv-search" id="mapForm" autocomplete="off"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input name="q" placeholder="Yer, adres ya da işletme ara… (ör. Galata Kulesi)"><button class="primary">Bul</button></form>
+      <div class="mv-layers" id="mapLayers"><button data-layer="dark" class="on">Koyu</button><button data-layer="street">Sokak</button><button data-layer="sat">Uydu</button></div>
+      <button class="mv-btn" id="mapLocate" title="Konumum">◎ Konumum</button>
+      <button class="mv-btn" id="mapClose" title="Kapat">✕</button>
+    </div>
+    <div id="map"><p class="empty">Harita yükleniyor…</p></div>
+    <div class="mv-foot"><span id="mapLabel"></span><span class="sp"></span>
+      <button class="mv-btn" id="mapRoute">🚗 Yol tarifi</button><button class="mv-btn" id="mapWalk">🚶 Yürüyerek</button><button class="mv-btn" id="mapShare">Paylaş</button></div>
+  </section>
   <section class="bulletin" id="bulletin" aria-label="Haber bülteni">
     <div class="bl-head"><span class="live">CANLI</span><h2 id="blName">Gündem</h2>
       <div class="bl-cats" id="blCats"><button data-cat="gundem">Gündem</button><button data-cat="sondakika">Son dakika</button><button data-cat="dunya">Dünya</button><button data-cat="ekonomi">Ekonomi</button><button data-cat="spor">Spor</button><button data-cat="teknoloji">Teknoloji</button></div>
@@ -107,7 +117,7 @@
   </nav>
 
   <!-- HABERLER -->
-  <section class="pane" data-pane="news">
+  <section class="pane" data-pane="news" hidden>
     <div class="chips" id="newsCats">
       <button data-cat="gundem">Gündem</button><button data-cat="sondakika">Son dakika</button>
       <button data-cat="dunya">Dünya</button><button data-cat="ekonomi">Ekonomi</button>
@@ -147,13 +157,6 @@
   </section>
 
   <!-- HARİTA -->
-  <section class="pane pane-map" data-pane="map">
-    <form class="inline-form map-search" id="mapForm" autocomplete="off">
-      <div class="row"><input name="q" placeholder="Yer ara: Galata Kulesi, Manisa…"><button class="primary">Bul</button></div>
-    </form>
-    <div id="map"><p class="empty">Harita yükleniyor…</p></div>
-    <div class="pane-actions"><span id="mapLabel" class="muted"></span><button class="mini" id="mapRoute">Yol tarifi ↗</button></div>
-  </section>
 
   <!-- NOTLAR -->
   <section class="pane" data-pane="notes">
@@ -276,6 +279,7 @@
       <label>Şehir (hava durumu) <input name="city"></label>
       <label class="check"><input type="checkbox" name="fullscreen"> Tam ekranla başlat</label>
       <label class="check"><input type="checkbox" name="show_transcript"> Konuşma yazılarını ekranda göster</label>
+      <label class="check"><input type="checkbox" name="barge_in"> Ben konuşmaya başlayınca NOVA sussun ve düşünmeyi bıraksın</label>
       <label class="check"><input type="checkbox" name="background"> Pencereyi kapatınca arka planda dinlemeye devam et</label>
       <label class="check"><input type="checkbox" name="autostart"> Windows açılınca NOVA arka planda başlasın</label>
     </fieldset>
@@ -337,7 +341,6 @@
 
     <fieldset>
       <legend>Mesajlaşma</legend>
-      <label class="check"><input type="checkbox" name="msg_confirm"> Göndermeden önce bana sor</label>
       <label class="check"><input type="checkbox" name="msg_auto_send"> Sohbet açılınca Enter'a kendisi bassın (otomatik gönder)</label>
       <label>Uygulamanın açılmasını bekleme (sn) <input type="number" name="msg_wait" min="2" max="15" step="0.5"></label>
       <label>Telegram Bot anahtarı (isteğe bağlı) <input name="tg_bot_token" type="password" placeholder="123456:ABC…"></label>
@@ -372,7 +375,7 @@
     </div>
 
     <div class="maker">
-      <div class="avatar" aria-hidden="true">SŞ</div>
+      <div class="avatar" aria-hidden="true"><img src="img/samet.jpg" alt="" onerror="this.remove()">SŞ</div>
       <div>
         <span class="kicker">Yapan</span>
         <h3 id="abMaker">Samet Şahin</h3>

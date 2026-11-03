@@ -292,8 +292,9 @@ def send_by_search(platform, name, text, auto, wait):
             return False, ("Telegram uygulaması bu bilgisayarda kurulu değil. Telegram Desktop'u kurarsan "
                            "kişinin adıyla doğrudan gönderebilirim.")
     else:
-        _open("whatsapp:" if platform == "whatsapp" else "tg://")
-        where = "WhatsApp" if platform == "whatsapp" else "Telegram"
+        # Masaüstü uygulaması: Windows UI Otomasyonu ile kişiyi bul ve gönder (sonucu bekler)
+        from . import wa_auto
+        return wa_auto.send(platform, name, text, auto, wait)
     if not IS_WIN:
         return False, "Otomatik gönderme yalnızca Windows'ta çalışır."
     title = "WhatsApp" if platform == "whatsapp" else "Telegram"
@@ -381,7 +382,8 @@ def parse(text: str, n: str, contacts):
     platform = next((p for p, rx in PLAT_RE.items() if re.search(rx, n)), None)
     if not platform:
         # platform söylenmediyse: "ömrüm kişisine ... mesaj gönder" → WhatsApp
-        if re.search(r"kişisine|'(e|a|ye|ya)\b", n) and re.search(r"\b(mesaj\w*|yaz)\b.*\b(gönder|yolla|at|ilet|yaz)\s*$", n):
+        if (re.search(r"kişisine", n) and re.search(r"\b(gönder|yolla|ilet|yaz|at)\w*\s*$", n)) or \
+                (re.search(r"'(e|a|ye|ya)\b", n) and re.search(r"\b(mesaj\w*|yaz)\b.*\b(gönder|yolla|at|ilet|yaz)\s*$", n)):
             platform = "whatsapp"
         else:
             return None

@@ -280,6 +280,7 @@ const TR_MONTHS = MONTHS, TR_DOW = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let activeTab = "news";
 function selectTab(name) {
+  if (name === "news" || name === "map") name = "calendar";   // haberler ve harita sağ panelde değil
   activeTab = name;
   try { localStorage.setItem("nova.tab", name); } catch (e) {}
   $$(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
@@ -296,6 +297,8 @@ function selectTab(name) {
 $$(".tabs button").forEach(b => b.onclick = () => selectTab(b.dataset.tab));
 $("#btnDock").onclick = () => document.body.classList.toggle("dock-open");
 function showPanel(ev) {
+  if (ev.name === "news") { openBrief(ev.category || "gundem"); return; }
+  if (ev.name === "map") { openMap(ev.place); return; }
   document.body.classList.add("dock-open");
   if (ev.name === "news" && ev.category) { newsCat = ev.category; newsLoaded[newsCat] = false; }
   if (ev.name === "calendar" && ev.focus) calSelect(ev.focus);
@@ -342,6 +345,7 @@ $("#newsShow").onclick = async () => {
 let bl = { items: [], i: 0, cat: "gundem", reading: false, timer: null };
 const BL_STEP = 9000;
 function showBulletin(ev) {
+  closeMap();
   bl.items = ev.items || []; bl.cat = ev.category || "gundem"; bl.i = 0; bl.reading = false;
   if (!bl.items.length) return;
   $("#blName").textContent = ev.name || "Gündem";
@@ -407,6 +411,8 @@ $$("#blCats button").forEach(b => b.onclick = () => { bl.reading = false; openBr
 /* ---------- üst menü ---------- */
 $$("#menubar [data-menu]").forEach(b => b.onclick = () => {
   const m = b.dataset.menu;
+  if (m === "map") { document.body.classList.contains("map-on") ? closeMap() : openMap(); return; }
+  closeMap();
   if (m === "brief") { document.body.classList.contains("bulletin-on") && bl.cat === "gundem" ? closeBulletin() : openBrief("gundem"); return; }
   closeBulletin();
   document.body.classList.add("dock-open");
@@ -630,13 +636,51 @@ async function initMap() {
   if (!window.L) { $("#map").innerHTML = '<p class="empty">Harita yüklenemedi. İnternet bağlantını kontrol et.</p>'; return; }
   $("#map").innerHTML = "";
   map = L.map("map", { zoomControl: true, attributionControl: true }).setView([39.0, 35.0], 5);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 19, subdomains: "abcd",
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
+  setLayer(currentLayer);
   setTimeout(() => map.invalidateSize(), 60);
   if (!mapPlace && info && info.settings.city) { const p = await api.geocode(info.settings.city); if (p) mapShow(p, 11); }
 }
+const OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const LAYERS = {
+  dark: ["https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", attribution: OSM + " · © CARTO" }],
+  street: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", attribution: OSM + " · © CARTO" }],
+  sat: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Görüntü © Esri, Maxar, Earthstar Geographics" }],
+};
+let tileLayer = null, currentLayer = "dark";
+try { currentLayer = localStorage.getItem("nova.layer") || "dark"; } catch (e) {}
+function setLayer(name) {
+  currentLayer = LAYERS[name] ? name : "dark";
+  try { localStorage.setItem("nova.layer", currentLayer); } catch (e) {}
+  $$("#mapLayers button").forEach(b => b.classList.toggle("on", b.dataset.layer === currentLayer));
+  if (!map) return;
+  if (tileLayer) tileLayer.remove();
+  const [url, opt] = LAYERS[currentLayer];
+  tileLayer = L.tileLayer(url, { maxZoom: 19, ...opt }).addTo(map);
+}
+$$("#mapLayers button").forEach(b => b.onclick = () => setLayer(b.dataset.layer));
+function openMap(place) {
+  closeBulletin();
+  document.body.classList.add("map-on");
+  $$("#menubar [data-menu]").forEach(b => b.classList.toggle("on", b.dataset.menu === "map"));
+  initMap().then(() => { setTimeout(() => map && map.invalidateSize(), 320); if (place) mapShow(place); });
+}
+function closeMap() { document.body.classList.remove("map-on"); $$('#menubar [data-menu="map"]').forEach(b => b.classList.remove("on")); }
+$("#mapClose").onclick = closeMap;
+$("#mapLocate").onclick = () => {
+  if (!navigator.geolocation) return toast("Konum alınamadı.");
+  toast("Konumun alınıyor…");
+  navigator.geolocation.getCurrentPosition(
+    pos => mapShow({ lat: pos.coords.latitude, lon: pos.coords.longitude, name: "Konumun", label: "Şu an buradasın" }, 15),
+    () => toast("Konum izni verilmedi ya da konum bulunamadı."), { timeout: 10000 });
+};
+$("#mapWalk").onclick = () => {
+  if (!mapPlace) return toast("Önce bir yer ara.");
+  api.open_url(`https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${mapPlace.lat},${mapPlace.lon}`);
+};
+$("#mapShare").onclick = () => {
+  if (!mapPlace) return toast("Önce bir yer ara.");
+  api.share("whatsapp", mapPlace.label || mapPlace.name, `https://www.google.com/maps?q=${mapPlace.lat},${mapPlace.lon}`);
+};
 function mapShow(p, zoom) {
   if (!map) { initMap().then(() => mapShow(p, zoom)); return; }
   mapPlace = p;
@@ -845,6 +889,7 @@ $("#ask").onsubmit = e => {
   api.send_text(v);
 };
 document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("map-on")) { closeMap(); return; }
   if (e.key === "Escape" && document.body.classList.contains("bulletin-on")) { closeBulletin(); return; }
   if (e.key === "Escape") { if (document.body.classList.contains("drawer-open")) closeDrawers(); else api.stop_speaking(); }
   if (e.key === "F11") { e.preventDefault(); toggleFullscreen(); }
@@ -1132,7 +1177,7 @@ whenReady().then(async a => {
   if (!info.ready) $("#setupNotice").hidden = false;
   timers = info.timers || []; renderTimers();
   if (info.update) showUpdate(info.update);
-  let tab = "news"; try { tab = localStorage.getItem("nova.tab") || "news"; } catch (e) {}
+  let tab = "calendar"; try { tab = localStorage.getItem("nova.tab") || "calendar"; } catch (e) {}
   selectTab(tab);
   calEvents = await api.cal_list() || []; renderCal();
   loadWeather(); loadRates();

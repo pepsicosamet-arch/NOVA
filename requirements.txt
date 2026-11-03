@@ -7,3 +7,4 @@ psutil>=5.9
 pillow>=10.0
 pystray>=0.19
 segno>=1.6
+uiautomation>=2.0.20; sys_platform == "win32"

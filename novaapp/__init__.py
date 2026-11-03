@@ -1,4 +1,4 @@
 """NOVA — Samet Şahin tarafından geliştirilen kişisel masaüstü asistanı."""
 
 APP_NAME = "NOVA"
-VERSION = "1.7.0"
+VERSION = "1.8.0"

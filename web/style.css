@@ -423,3 +423,27 @@ body.no-transcript #transcript{display:none}
 .qr-box img{width:min(240px,100%);height:auto;border-radius:10px;image-rendering:pixelated}
 .phone-url{font:12.5px var(--mono);color:var(--muted);text-align:center;word-break:break-all;margin:8px 0}
 .steps{margin:10px 0 0;padding-left:20px;font-size:13px;color:#c3cadf;line-height:1.7}
+
+/* ---------- büyük harita ekranı ---------- */
+.mapview{position:absolute;inset:8px 0 0;z-index:4;display:flex;flex-direction:column;gap:10px;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .3s,transform .3s}
+body.map-on .mapview{opacity:1;pointer-events:auto;transform:none}
+body.map-on #core{opacity:.08;filter:blur(3px)}
+body.map-on .core-label,body.map-on .bulletin{opacity:0;pointer-events:none}
+.mv-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mv-search{flex:1;min-width:260px;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border:1px solid var(--line2);border-radius:12px;background:var(--panel)}
+.mv-search svg{width:18px;height:18px;color:var(--muted);flex:none}
+.mv-search input{flex:1;min-width:0;border:0;background:none;outline:none;padding:8px 0;font-size:14.5px}
+.mv-search .primary{padding:8px 16px;border-radius:9px;border:0;cursor:pointer;font-weight:600}
+.mv-layers{display:flex;padding:3px;border:1px solid var(--line2);border-radius:11px;background:var(--panel)}
+.mv-layers button{border:0;background:none;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+.mv-layers button.on{background:var(--acc);color:#04050b;font-weight:600}
+.mv-btn{border:1px solid var(--line2);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.mv-btn:hover{border-color:var(--acc)}
+.mapview #map{flex:1;min-height:0;border:1px solid var(--line2);border-radius:16px;overflow:hidden;box-shadow:0 30px 80px -30px color-mix(in srgb,var(--acc) 40%,transparent)}
+.mv-foot{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.mv-foot .sp{flex:1}
+.mv-foot #mapLabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ---------- hakkında fotoğrafı ---------- */
+.avatar{position:relative;overflow:hidden}
+.avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+.maker .avatar{width:86px;height:86px;border:2px solid color-mix(in srgb,var(--acc) 70%,transparent)}

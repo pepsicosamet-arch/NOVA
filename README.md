@@ -28,14 +28,14 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - Sesle değiştirilebilir: "ATLAS'a geç", "LAYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
 
 **Mesajlaşma ve paylaşım** (Mesaj sekmesi)
-- "WhatsApp'tan anneme geliyorum yaz" ya da "Ömrüm kişisine seni seviyorum diye mesaj gönder" → NOVA sormadan WhatsApp'ı açar, kişiyi bulur ve mesajı gönderir. Onay sorusu istenirse Ayarlar'dan açılabilir.
+- "WhatsApp'tan anneme geliyorum yaz" ya da "Ömrüm kişisine seni seviyorum diye mesaj gönder" → NOVA sormadan WhatsApp uygulamasını açar, Windows UI Otomasyonu ile kişiyi uygulamanın aramasında bulur ve mesajı gönderir.
 - "Ahmet'e Telegram'dan yarın görüşürüz mesajı gönder" → Telegram'da sohbeti açıp gönderir. İstersen Telegram Bot ile tamamen arka planda gönderebilir.
 - "X'te paylaş: NOVA 1.5 yayında" → X'te gönderi metni hazır açılır, Paylaş butonuna sen basarsın.
 - PC'de WhatsApp, Telegram ya da X uygulaması kuruluysa NOVA onu kullanır; kurulu değilse web sürümünü açar.
 - Numara gerekmez: NOVA uygulamayı açar, kişiyi uygulamanın kendi aramasında adıyla bulur ve mesajı gönderir.
 - Haber bülteninden haberler tek tıkla X, WhatsApp ya da Telegram'da paylaşılabilir.
 
-**Üst menü:** Gündem, Haberler, Canlı TV, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
+**Üst menü:** Gündem, Canlı TV, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
 
 **Canlı TV:** TRT 1, ATV, Show TV, Star TV, Kanal D, NOW, TV8, Kanal 7, TRT Haber, NTV, Habertürk, CNN Türk, A Haber, Halk TV, Sözcü TV, tv100, TRT Spor ve TRT Çocuk. Kanallar kendi resmî canlı yayın sayfalarında, ayrı bir pencerede açılır. Sesle de olur: "TRT 1'i aç".
 
@@ -54,7 +54,19 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - Telefon aynı Wi-Fi'dayken QR kod okutulunca telefonda NOVA sayfası açılır.
 - Bu sayfadan NOVA'ya yazılabilir, hızlı komut gönderilebilir, fotoğraf ve dosya yollanabilir (Resimler\NOVA\Telefon) ve iki yönlü pano paylaşılabilir.
 
+**Söz kesme**
+- NOVA konuşurken ya da düşünürken sen konuşmaya başlarsan hemen susar, düşünmeyi bırakır ve seni dinler. Ayarlar'dan kapatılabilir.
+
+**Yapay zekâ ile mesaj yazdırma**
+- "Bana aşk dolu bir mesaj hazırla ve ömrüm kişisine WhatsApp'tan gönder" → NOVA mesajı kendisi yazar ve gönderir.
+- NOVA'ya bir şey yazdırdıktan sonra "ömrüm kişisine gönder" ya da "bunu gönder" dersen son yazdığını gönderir.
+
+**Harita**
+- Harita artık ortada büyük bir ekran olarak açılıyor. Koyu, sokak ve uydu görünümü var.
+- "Konumum" düğmesi, araçla ya da yürüyerek yol tarifi ve WhatsApp'ta paylaşma da eklendi.
+
 **Diğer**
+- "100 dolar kaç TL", "Chrome'u kapat", "IP adresim ne", "tekrar et", "daha yavaş konuş", "tam ekran yap"
 - "Son depremler" → AFAD verisinden son depremleri söyler.
 - "Akşam ezanı ne zaman?" ya da "namaz vakitleri" → Diyanet hesabıyla bugünkü vakitleri söyler.
 - "25 çarpı 4 kaç eder", "200'ün yüzde 15'i kaç" → hızlı hesap yapar.

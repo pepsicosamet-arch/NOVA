@@ -139,7 +139,8 @@ class Brain:
             "contents": contents,
             "generationConfig": {"temperature": 0.7, "maxOutputTokens": 900},
         }
-        if self.s.get("web_search") and not image_png:
+        import time as _t
+        if self.s.get("web_search") and not image_png and _t.time() > getattr(self, "no_search_until", 0):
             body["tools"] = [{"google_search": {}}]
         data = None
         for _ in range(3):
@@ -177,6 +178,9 @@ class Brain:
         if r.status_code in (400, 429) and "tools" in body:
             # Google Arama aracının ayrı (ve çoğu zaman daha düşük) kotası var: aramasız dene
             log.warning("Gemini %s (arama aracıyla); aramasız deneniyor", r.status_code)
+            if r.status_code == 429:               # arama kotası doldu: 1 saat aramasız çalış (daha hızlı)
+                import time as _t
+                self.no_search_until = _t.time() + 3600
             return None
         if r.status_code == 404:
             m = re.search(r"use models/([\w.\-]+)", r.text)

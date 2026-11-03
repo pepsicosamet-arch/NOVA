@@ -51,6 +51,9 @@ class Nova:
         self.busy = threading.Event()
         self._interrupted = False
         self.pending = None      # onay bekleyen mesaj
+        self.last_reply = ""     # beynin son yanıtı ("bunu gönder" için)
+        self.last_said = ""
+        self.gen = 0             # kullanıcı araya girince düşünmeyi iptal etmek için
         self.feed = deque(maxlen=80)   # telefon sayfası için son konuşmalar
         self._feed_id = 0
         self.profile = None
@@ -60,7 +63,8 @@ class Nova:
         self.update_info = None
         self._timer_seq = 0
         self.listener = Listener(self._on_utterance, self._on_level, self._on_mic_error,
-                                 sensitivity=lambda: self.settings.get("sensitivity"))
+                                 sensitivity=lambda: self.settings.get("sensitivity"),
+                                 on_barge=self._on_barge, barge=lambda: bool(self.settings.get("barge_in")))
         threading.Thread(target=self._worker, daemon=True, name="nova-worker").start()
 
     # ---------------- arayüze olay gönder ----------------
@@ -172,11 +176,40 @@ class Nova:
     def _on_level(self, level):
         self.emit("level", value=round(level, 3))
 
+    def _on_barge(self):
+        """Kullanıcı konuşmaya başladı: NOVA susar ve düşünmeyi bırakır."""
+        self._interrupted = True
+        self.gen += 1                      # süren düşünme sonucunu çöpe at
+        self.speaking.clear()
+        self.emit("stop_audio")
+        self.listener.hold.clear()
+        self.set_state("hearing")
+
+    def ask_brain(self, text, image_png=None):
+        """Beyne sor; kullanıcı araya girerse yanıtı beklemeden bırak (None döner)."""
+        import concurrent.futures as cf
+        g = self.gen
+        self.listener.hold.set()           # düşünürken de araya girilebilsin
+        ex = cf.ThreadPoolExecutor(max_workers=1)
+        fut = ex.submit(self.brain.ask, text, image_png)
+        try:
+            while True:
+                try:
+                    return fut.result(timeout=0.1)
+                except cf.TimeoutError:
+                    if self.gen != g:
+                        log.info("Düşünme iptal edildi (kullanıcı araya girdi)")
+                        return None
+        finally:
+            ex.shutdown(wait=False)
+            if self.gen == g:
+                self.listener.hold.clear()
+
     def _on_mic_error(self, msg):
         self.emit("toast", text=msg, kind="error")
 
     def _on_utterance(self, pcm):
-        if self.speaking.is_set() or self.busy.is_set():
+        if self.speaking.is_set():
             return
         if self.awake:
             self.set_state("hearing")
@@ -282,6 +315,9 @@ class Nova:
             return
 
         # --- onay bekleyen mesaj var mı? ---
+        if self.pending and self.pending.get("stage") in ("text", "to") and \
+                social.parse(text, n, []) is not None:
+            self.pending = None                 # yeni bir mesaj komutu geldi: eskisini bırak
         if self.pending:
             p, self.pending = self.pending, None
             if p.get("stage") == "to":
@@ -295,7 +331,14 @@ class Nova:
                     return self.say("Tamam. İptal etmek için 15 saniye içinde 'iptal' de." if p["kind"] in ("shutdown", "restart") else "Tamam.")
                 return self.say("Peki, vazgeçtim.")
             if p.get("stage") == "text":
-                p["text"] = text[:1].upper() + text[1:]
+                if re.fullmatch(r"(gönder|hadi gönder|gönder hadi|evet|tamam|olur|onu gönder|bunu gönder)", n):
+                    if self.last_reply:
+                        p["text"] = self.last_reply
+                    else:
+                        self.pending = p
+                        return self.say("Mesajın kendisini söyle, ne yazayım?")
+                else:
+                    p["text"] = text[:1].upper() + text[1:]
                 p.pop("missing", None)
                 return self.message_flow(p)
             if re.search(r"^(evet|gönder|tamam|olur|onayl\w*|paylaş|evet gönder|tabii)\b", n):
@@ -361,6 +404,48 @@ class Nova:
         if kind:
             self.pending = {"stage": "power", "kind": kind}
             return self.say(extras.POWER[kind][0][:1].upper() + extras.POWER[kind][0][1:] + "?")
+        # --- pratik komutlar ---
+        if re.search(r"tam ekran", n):
+            ui.window_show("front")
+            time.sleep(0.2)
+            social._keys(0x7A)                 # F11
+            return self.say("Tamam.")
+        if re.fullmatch(r"(harita(yı)?|haritalar(ı)?) (aç|göster)", n):
+            self.show_window()
+            self.emit("panel", name="map")
+            return self.say("Harita açık.")
+        if re.search(r"(tekrar et|tekrarla|ne dedin|bir daha söyle)", n) and self.last_said:
+            return self.say(self.last_said)
+        if re.search(r"daha (yavaş|ağır) konuş", n):
+            self.settings.update({"rate": max(-40, int(self.settings.get("rate") or 0) - 10)})
+            return self.say("Tamam, daha yavaş konuşuyorum.")
+        if re.search(r"daha hızlı konuş", n):
+            self.settings.update({"rate": min(40, int(self.settings.get("rate") or 0) + 10)})
+            return self.say("Tamam, daha hızlı konuşuyorum.")
+        m = re.search(r"(\d+(?:[.,]\d+)?) (dolar|euro|avro|sterlin|gram altın|altın)\w* (kaç |ne kadar )?(tl|lira|türk lirası)", n)
+        if m:
+            r = widgets.rates()
+            key = {"dolar": "USD", "euro": "EUR", "avro": "EUR", "sterlin": "GBP"}.get(m.group(2), "ALTIN")
+            val = (r.get("rates") or {}).get(key)
+            if not val:
+                return self.say("Kurlara şu an ulaşamadım.")
+            amount = float(m.group(1).replace(",", "."))
+            tl = f"{amount * val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return self.say(f"{m.group(1)} {m.group(2)} yaklaşık {tl} lira eder.")
+        if re.search(r"\bip adres", n):
+            lan = phone_mod.lan_ip()
+            try:
+                import requests as _rq
+                pub = _rq.get("https://api.ipify.org", timeout=5).text.strip()
+            except Exception:
+                pub = "alınamadı"
+            return self.say(f"Yerel IP adresin {lan}, internetteki adresin {pub}.")
+        m = re.search(r"^(.+?)'?(?:y?[ıiuü]|n[ıiuü])? (kapat|sonlandır)$", n)
+        if m and not re.search(r"bilgisayar|ekran|pencere|sistem|oturum|kamera|ses|müzik|zamanlayıcı|alarm|telefon", m.group(1)):
+            exe = extras.PROCESS.get(re.sub(r"'.*$", "", m.group(1)).strip())
+            if exe:
+                extras.kill(exe)
+                return self.say(f"{m.group(1).split(chr(39))[0].capitalize()} kapatıldı.")
         # --- deprem, namaz vakti, hesap, pano ---
         if re.search(r"deprem", n):
             return self.say(extras.earthquake_reply(n))
@@ -416,7 +501,10 @@ class Nova:
         if reply is None:
             self.set_state("thinking")
             try:
-                reply = self.brain.ask(text, image_png=image)
+                reply = self.ask_brain(text, image_png=image)
+                if reply is None:          # kullanıcı araya girdi
+                    return
+                self.last_reply = reply
             except BrainError as e:
                 log.warning("Beyin hatası: %s", e)
                 reply = str(e)
@@ -586,6 +674,7 @@ class Nova:
     def say(self, text, then_sleep=False, record=True):
         if not text:
             return self.idle_state()
+        self.last_said = text
         self._interrupted = False
         if record:
             self.emit("nova", text=text)
@@ -634,18 +723,30 @@ class Nova:
             m["stage"] = "to"
             self.pending = m
             return self.say("Kime göndereyim? Uygulamada kayıtlı olduğu adı söyle.")
-        if m.get("missing") == "text" or not m.get("text"):
+        body = (m.get("text") or "").strip()
+        low = commands.norm(body)
+        # "bunu / hazırladığın mesajı / şiiri gönder" → son yanıtı gönder
+        if (not body or re.fullmatch(r"(bunu|onu|bu mesajı|mesajı|bu şiiri|şiiri|hazırladığın mesajı|"
+                                     r"hazırladığın şiiri|yazdığın mesajı|son mesajı|o mesajı)", low)) and self.last_reply:
+            m["text"] = self.last_reply
+        elif not body:
             m["stage"] = "text"
             self.pending = m
             return self.say("Ne yazayım?" if m["platform"] != "x" else "Ne paylaşayım?")
-        if self.settings.get("msg_confirm"):
-            m["stage"] = "confirm"
-            self.pending = m
-            to = f"{m['contact']['name']} kişisine " if m.get("contact") else ""
-            self.emit("msg_preview", platform=m["platform"], platform_name=plat,
-                      to=m["contact"]["name"] if m.get("contact") else "", text=m["text"])
-            verb = "paylaşayım mı" if m["platform"] == "x" else "göndereyim mi"
-            return self.say(f"{social.FROM[m['platform']]} {to}şunu {verb}: {m['text']}")
+        # "aşk dolu bir şiir / güzel bir mesaj hazırla" → mesajı yapay zekâ yazsın
+        elif re.search(r"\b(şiir\w*|hazırla\w*|romantik|aşk dolu|duygusal|komik|doğum günü|tebrik|kutla\w*|özür|"
+                       r"teşekkür|güzel bir|anlamlı|günaydın mesajı|iyi geceler mesajı|bir mesaj)\b", low) \
+                and len(low.split()) <= 12:
+            who = (m.get("contact") or {}).get("name", "")
+            brief = re.sub(r"\b(bana|hazırla\w*|ve|yaz|gönder)\b", " ", body).strip()
+            self.set_state("thinking", "Mesajı yazıyorum")
+            try:
+                gen = self.brain.ask(
+                    f"{who + ' adlı kişiye ' if who else ''}gönderilecek bir mesaj yaz: {brief}. "
+                    "Yalnızca mesaj metnini yaz; tırnak, başlık ya da açıklama ekleme. En fazla 5 kısa cümle.")
+                m["text"] = gen.strip().strip('"“”')
+            except BrainError as e:
+                return self.say(f"Mesajı yazamadım: {e}")
         return self.message_send(m)
 
     def message_send(self, m):

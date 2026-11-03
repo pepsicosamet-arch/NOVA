@@ -176,3 +176,17 @@ def clipboard_text() -> str:
         return txt
     finally:
         u.CloseClipboard()
+
+
+# ---------------- uygulama kapatma ----------------
+PROCESS = {"chrome": "chrome.exe", "google chrome": "chrome.exe", "edge": "msedge.exe", "spotify": "Spotify.exe",
+           "discord": "Discord.exe", "steam": "steam.exe", "word": "WINWORD.EXE", "excel": "EXCEL.EXE",
+           "powerpoint": "POWERPNT.EXE", "not defteri": "notepad.exe", "hesap makinesi": "CalculatorApp.exe",
+           "whatsapp": "WhatsApp.exe", "telegram": "Telegram.exe", "vlc": "vlc.exe", "obs": "obs64.exe",
+           "paint": "mspaint.exe", "firefox": "firefox.exe", "opera": "opera.exe", "zoom": "Zoom.exe",
+           "teams": "ms-teams.exe", "vs code": "Code.exe", "visual studio code": "Code.exe", "minecraft": "javaw.exe"}
+
+
+def kill(exe: str):
+    if IS_WIN:
+        subprocess.Popen(["taskkill", "/IM", exe, "/F"], creationflags=0x08000000)

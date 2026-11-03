@@ -42,6 +42,7 @@ if errorlevel 1 goto :fail
 
 rem ---- 4) EXE ----
 echo [4/5] NOVA.exe olusturuluyor...
+"%VPY%" -c "import uiautomation" >nul 2>&1
 if exist build rmdir /s /q build
 if exist dist\NOVA rmdir /s /q dist\NOVA
 "%VPY%" -m PyInstaller --noconfirm --clean --windowed --name NOVA ^
@@ -49,6 +50,8 @@ if exist dist\NOVA rmdir /s /q dist\NOVA
   --add-data "web;web" ^
   --add-data "assets;assets" ^
   --hidden-import pystray._win32 ^
+  --hidden-import uiautomation ^
+  --collect-submodules comtypes.gen ^
   --collect-all _sounddevice_data ^
   --collect-all _soundfile_data ^
   main.py

@@ -31,7 +31,7 @@ def to_wav(pcm: bytes) -> bytes:
 
 
 class Listener(threading.Thread):
-    def __init__(self, on_utterance, on_level, on_error, sensitivity=lambda: 1.0):
+    def __init__(self, on_utterance, on_level, on_error, sensitivity=lambda: 1.0, on_barge=None, barge=lambda: True):
         super().__init__(daemon=True, name="nova-listener")
         self.on_utterance = on_utterance
         self.on_level = on_level
@@ -39,6 +39,8 @@ class Listener(threading.Thread):
         self.sensitivity = sensitivity
         self.enabled = threading.Event()   # mikrofon açık mı
         self.hold = threading.Event()      # NOVA konuşurken / düşünürken dinlemeyi tut
+        self.on_barge = on_barge           # kullanıcı araya girerse (NOVA'nın sözünü keserse)
+        self.barge = barge
         self._halt = threading.Event()
 
     def stop(self):
@@ -65,22 +67,36 @@ class Listener(threading.Thread):
         with sd.InputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=BLOCK, callback=cb):
             noise = None
             pre = deque(maxlen=PREROLL)
-            frames, speaking, voiced, silence, tick = [], False, 0, 0, 0
+            frames, speaking, voiced, silence, tick, loud = [], False, 0, 0, 0, 0
             while not self._halt.is_set():
                 try:
                     block = q.get(timeout=0.5)
                 except queue.Empty:
                     continue
-                if not self.enabled.is_set() or self.hold.is_set():
-                    frames, speaking, voiced, silence = [], False, 0, 0
+                if not self.enabled.is_set():
+                    frames, speaking, voiced, silence, loud = [], False, 0, 0, 0
                     pre.clear()
+                    continue
+                x = block.astype(np.float32)
+                rms = float(math.sqrt(float(np.mean(x * x)) + 1e-9))
+                if self.hold.is_set():
+                    # NOVA konuşuyor/düşünüyor: yalnızca belirgin bir insan sesi gelirse araya gir.
+                    # Hoparlörden gelen NOVA sesini kullanıcı sanmamak için eşik yüksek tutulur.
+                    pre.append(block)
+                    bthr = max(1500.0, (noise or 300.0) * 6.0) / max(0.3, float(self.sensitivity() or 1.0))
+                    loud = loud + 1 if rms > bthr else max(0, loud - 1)
+                    if loud >= 7 and self.on_barge and self.barge():
+                        log.info("Kullanıcı araya girdi (rms %.0f)", rms)
+                        loud = 0
+                        self.on_barge()               # konuşmayı/düşünmeyi durdurur, hold'u kaldırır
+                        speaking, frames, silence, voiced = True, list(pre), 0, 0
+                        continue
+                    frames, speaking, voiced, silence = [], False, 0, 0
                     tick += 1
                     if tick % 4 == 0:
                         self.on_level(0.0)
                     continue
-
-                x = block.astype(np.float32)
-                rms = float(math.sqrt(float(np.mean(x * x)) + 1e-9))
+                loud = 0
                 noise = rms if noise is None else (noise * 0.97 + rms * 0.03 if not speaking else noise)
                 thr = max(260.0, noise * 2.8) / max(0.3, float(self.sensitivity() or 1.0))
 

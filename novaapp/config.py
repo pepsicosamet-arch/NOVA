@@ -45,6 +45,7 @@ DEFAULTS = {
     "msg_wait": 4.0,                   # uygulamanın açılmasını bekleme süresi (sn)
     "tg_bot_token": "",                # isteğe bağlı: Telegram Bot ile arka planda gönderim
     "show_transcript": False,          # konuşma yazılarını ekranda göster
+    "barge_in": True,                  # ben konuşunca NOVA sussun / düşünmeyi bıraksın
     "background": True,                # pencere kapanınca arka planda dinlemeye devam et
     "autostart": False,                # Windows açılınca arka planda başlat
     "phone_enabled": False,            # telefon bağlantısı (aynı Wi-Fi, QR kod)
