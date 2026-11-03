@@ -36,6 +36,15 @@ DEFAULTS = {
     "wake_words": "nova, uyan",
     "auto_update": True,
     "update_repo": "pepsicosamet-arch/nova",
+    # Çipler (kişilikler): nova | atlas | lyra | kronos
+    "chip": "nova",
+    "chip_voice": True,                # çipin kendi sesini ve ses efektini kullan
+    "chip_name_nova": "",
+    "chip_name_atlas": "",
+    "chip_name_lyra": "",
+    "chip_name_kronos": "",
+    # Müzik: youtube | ytmusic | spotify
+    "music_source": "youtube",
     "sleep_words": "uyu, uyku moduna geç, beklemeye geç",
 }
 

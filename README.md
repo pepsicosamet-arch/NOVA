@@ -19,6 +19,24 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - **Notlar:** Not yazma, okuma ve silme.
 - **Sol panel:** 5 günlük hava durumu, döviz ve gram altın, sistem durumu (işlemci, bellek, pil).
 
+**Çipler** (Çipler sekmesi)
+- Dört ayrı kişilik var, her birinin kendi tasarımı, rengi, sesi, ses efekti ve konuşma tarzı var:
+  - **NOVA:** Yıldız çekirdek, mavi, samimi.
+  - **ATLAS:** Dönen tel kafes küre, altın rengi, sakin ve resmi uşak; derin ses ve yapay zekâ tınısı.
+  - **LYRA:** Ses dalgası çiçeği, pembe, neşeli; kadın sesi.
+  - **KRONOS:** Kırık prizma ve keskin çokgenler, kırmızı, soğuk ve az konuşan; metalik ses.
+- Sesle değiştirilebilir: "ATLAS'a geç", "LYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
+
+**Müzik**
+- "YouTube'da Duman çal", "Sezen Aksu şarkısını çal" ve "biraz müzik aç" komutları ilk videoyu doğrudan oynatır.
+- "Spotify'da Tarkan çal" komutu Spotify'da aramayı açar.
+- Varsayılan kaynak Ayarlar'dan seçilir: YouTube, YouTube Music ya da Spotify.
+
+**Haber bülteni**
+- "Haberleri göster" ya da "son dakika haberlerini oku" dediğinde ekranda büyük, görselli bir bülten açılır.
+- NOVA haberleri okurken okuduğu başlık öne çıkar.
+- Ekranın üstünde kayan bir son dakika bandı var.
+
 **Sesli komut örnekleri**
 - "Nova uyan" · "uyu"
 - "Son dakika haberlerini oku" · "spor haberlerini göster"

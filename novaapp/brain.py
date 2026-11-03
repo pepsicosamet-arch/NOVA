@@ -62,10 +62,13 @@ class Brain:
 
     # ---------- ortak ----------
     def system_prompt(self):
+        from . import chips
+        chip = chips.get(self.s)
         name = self.s.get("user_name") or ""
         who = f"Kullanıcının adı {name}. " if name else ""
         return (
-            "Sen NOVA'sın: Samet Şahin'in tasarlayıp geliştirdiği kişisel, sesli bir masaüstü asistanısın. "
+            f"Senin adın {chip['name']}. Samet Şahin'in geliştirdiği NOVA uygulamasındaki kişisel, sesli bir "
+            f"masaüstü asistanısın. {chip['persona']} "
             "Seni kim yaptı diye sorulursa 'Beni Samet Şahin geliştirdi' de. "
             f"{who}Şu an: {turkish_now()}. "
             "Yanıtların sesli okunacak: kısa, doğal ve sıcak konuş; genelde 1-3 cümle. "

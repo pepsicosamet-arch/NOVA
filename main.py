@@ -29,6 +29,7 @@ from novaapp.config import Settings, resource  # noqa: E402
 from novaapp.listener import Listener, recognize  # noqa: E402
 from novaapp import server as ui  # noqa: E402
 from novaapp import updater, widgets  # noqa: E402
+from novaapp import chips  # noqa: E402
 import datetime as dt  # noqa: E402
 
 
@@ -44,6 +45,7 @@ class Nova:
         self.jobs = queue.Queue()
         self.speaking = threading.Event()
         self.busy = threading.Event()
+        self._interrupted = False
         self.timers = {}
         self.calendar = widgets.Calendar()
         self.update_info = None
@@ -82,12 +84,13 @@ class Nova:
         threading.Thread(target=self._update_check, daemon=True, name="nova-guncelleme").start()
         time.sleep(0.4)
         name = self.settings.get("user_name")
+        chip = chips.get(self.settings)
         if not self.brain.ready():
             self.emit("needs_setup")
-            self.say(f"Merhaba{' ' + name if name else ''}, ben NOVA. Başlamak için ayarlardan "
-                     "Gemini ya da ChatGPT anahtarını girmen yeterli.")
+            self.say(f"Merhaba{' ' + name if name else ''}, ben {chip['name']}. Başlamak için ayarlardan "
+                     "bir beyin seçmen yeterli.")
         else:
-            self.say(f"Merhaba{' ' + name if name else ''}, NOVA hazır. Seni dinliyorum.")
+            self.say(f"Merhaba{' ' + name if name else ''}. {chip['greeting']}")
 
     # ---------------- ses girişi ----------------
     def _on_level(self, level):
@@ -134,6 +137,7 @@ class Nova:
         wake = [commands.norm(w) for w in self.settings.words("wake_words")]
         if "nova" in wake:
             wake += WAKE_VARIANTS
+        wake += [chips.name(self.settings, c).lower() for c in chips.ORDER]  # çip adları da uyandırır
         sleep = [commands.norm(w) for w in self.settings.words("sleep_words")]
 
         if not self.awake:
@@ -151,10 +155,24 @@ class Nova:
             text, n = rest, rest
         else:
             self.emit("user", text=text)
-            stripped = re.sub(r"^(hey |hadi )?(nova|noa|nuva|nowa|nava)\b[ ,]*", "", n)
-            if stripped and stripped != n:
-                text, n = stripped, stripped
 
+        if re.search(r"(çip(i|ini)?|kişiliğ(i|ini)|moda?|sese)? ?(geç|değiştir|aktif et|yükle|çalıştır|olsun)$", n) \
+                and (re.search(r"\bçip|kişilik|mod", n) or re.search(r"'?(e|a|ye|ya) geç$", n)):
+            cid = chips.find(self.settings, n)
+            if cid:
+                self.set_chip(cid)
+                self.say(chips.get(self.settings)["greeting"])
+                return
+            if re.search(r"\bçip", n):
+                names = ", ".join(chips.name(self.settings, c) for c in chips.ORDER)
+                self.say(f"Hangi çipe geçeyim? Seçenekler: {names}.")
+                return
+        # baştaki ad hitabını at ("nova, saat kaç" → "saat kaç")
+        names = "|".join(re.escape(x) for x in ["nova", "noa", "nuva", "nowa", "nava"] +
+                         [chips.name(self.settings, c).lower() for c in chips.ORDER])
+        stripped = re.sub(rf"^(hey |hadi )?({names})\b[ ,]*", "", n)
+        if stripped and stripped != n and not stripped.startswith("'"):
+            text, n = stripped, stripped
         if any(re.fullmatch(rf"(nova )?{re.escape(w)}( nova)?", n) for w in sleep):
             self.awake = False
             first = self.settings.words("wake_words")
@@ -229,13 +247,22 @@ class Nova:
     # ---------------- 1.3 özellikleri ----------------
     def news_reply(self, cat, read):
         data = widgets.news(cat)
-        self.emit("panel", name="news", category=cat)
         if not data["items"]:
             return "Haberlere şu an ulaşamadım."
+        # Haber bülteni ekranı: büyük kartlar, okunurken sırayla öne çıkar
+        self.emit("news_show", category=cat, name=data["name"], items=data["items"][:12])
         if not read:
-            return f"{data['name']} haberlerini panelde açtım. Okumamı istersen 'haberleri oku' de."
-        heads = [i["title"].rstrip(".") for i in data["items"][:5]]
-        return f"{data['name']} başlıkları: " + ". ".join(heads) + "."
+            return f"{data['name']} haberleri ekranda. Okumamı istersen 'haberleri oku' de."
+        self.say(f"{data['name']} bülteni.")
+        for idx, item in enumerate(data["items"][:6]):
+            if not self.awake:
+                break
+            self.emit("news_focus", index=idx)
+            self.say(item["title"].rstrip(".") + ".", record=False)
+            if self._interrupted:
+                break
+        self.emit("news_focus", index=-1)
+        return ""
 
     def calendar_add_voice(self, text):
         n = commands.norm(text)
@@ -377,8 +404,12 @@ class Nova:
                                    for i in sorted(self.timers.values(), key=lambda i: i["end"])])
 
     # ---------------- ses çıkışı ----------------
-    def say(self, text, then_sleep=False):
-        self.emit("nova", text=text)
+    def say(self, text, then_sleep=False, record=True):
+        if not text:
+            return self.idle_state()
+        self._interrupted = False
+        if record:
+            self.emit("nova", text=text)
         if not self.settings.get("speak"):
             if then_sleep:
                 self.set_state("sleeping")
@@ -393,9 +424,10 @@ class Nova:
         for i, chunk in enumerate(chunks):
             if not self.speaking.is_set():  # kullanıcı sözünü kesti
                 break
-            audio = tts.synth(chunk, self.settings.get("voice"), self.settings.get("rate"))
+            voice, pitch, rate, fx = chips.voice(self.settings)
+            audio = tts.synth(chunk, voice, rate, pitch)
             self.emit("speak", text=chunk, audio=base64.b64encode(audio).decode() if audio else None,
-                      lang=self.settings.get("language"), first=(i == 0), final=(i == len(chunks) - 1))
+                      lang=self.settings.get("language"), first=(i == 0), final=(i == len(chunks) - 1), fx=fx)
         # arayüz çalmayı bitirince speech_done çağırır; güvenlik için zaman aşımı
         deadline = time.time() + 8 + len(text) * 0.12
         while self.speaking.is_set() and time.time() < deadline:
@@ -404,6 +436,14 @@ class Nova:
         time.sleep(0.25)
         self.listener.hold.clear()
         self.idle_state()
+
+    def set_chip(self, cid):
+        if cid not in chips.CHIPS:
+            return False
+        self.settings.update({"chip": cid})
+        self.emit("chip", chip=chips.get(self.settings), chips=chips.public(self.settings))
+        log.info("Çip: %s", cid)
+        return True
 
     # ---------------- sistem bilgisi ----------------
     def _stats_loop(self):
@@ -448,6 +488,7 @@ class Api:
                 "timers": [{"id": i["id"], "label": i["label"], "end": int(i["end"] * 1000)}
                            for i in sorted(n.timers.values(), key=lambda i: i["end"])],
                 "update": n.update_info if n.update_info and n.update_info.get("available") else None,
+                "chip": chips.get(n.settings), "chips": chips.public(n.settings),
                 "voices": VOICES, "state": n.state, "awake": n.awake, "mic": n.listener.enabled.is_set(),
                 "ready": n.brain.ready()}
 
@@ -462,7 +503,14 @@ class Api:
         self._n.speaking.clear()
         return True
 
+    def set_chip(self, cid):
+        ok = self._n.set_chip(cid)
+        if ok and not self._n.busy.is_set():
+            self._n.jobs.put(("announce", chips.get(self._n.settings)["greeting"]))
+        return {"chip": chips.get(self._n.settings), "chips": chips.public(self._n.settings)}
+
     def stop_speaking(self):
+        self._n._interrupted = True
         self._n.speaking.clear()  # kalan cümleler hazırlanmaz
         self._n.emit("stop_audio")
         return True
@@ -482,8 +530,9 @@ class Api:
 
     def save_settings(self, values):
         self._n.settings.update(values or {})
+        self._n.emit("chip", chip=chips.get(self._n.settings), chips=chips.public(self._n.settings))
         return {"settings": self._n.settings.public(), "ready": self._n.brain.ready(),
-                "about": build_about(self._n.settings)}
+                "about": build_about(self._n.settings), "chips": chips.public(self._n.settings)}
 
     def cancel_timer(self, tid):
         item = self._n.timers.pop(int(tid), None)

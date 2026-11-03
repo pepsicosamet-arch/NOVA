@@ -269,6 +269,54 @@ PANEL_WORDS = {"haber": "news", "takvim": "calendar", "harita": "map", "zamanlay
                "not": "notes", "hava": "weather", "döviz": "rates", "komut": "help"}
 
 
+# ---------------- müzik ----------------
+def play_music(query: str, source: str) -> str:
+    from .widgets import youtube_first
+    q = query.strip() or "popüler türkçe şarkılar"
+    nice = " ".join(w[:1].upper() + w[1:] for w in q.split())
+    if source == "spotify":
+        uri = "spotify:search:" + urllib.parse.quote(q)
+        if IS_WIN:
+            try:
+                os.startfile(uri)  # type: ignore[attr-defined]
+                return f"Spotify'da {nice} aramasını açtım. Listeden seçip çalabilirsin."
+            except OSError:
+                pass
+        open_url("https://open.spotify.com/search/" + urllib.parse.quote(q))
+        return f"Spotify'da {nice} aramasını açtım."
+    vid = youtube_first(q)
+    if vid:
+        base = "https://music.youtube.com/watch?v=" if source == "ytmusic" else "https://www.youtube.com/watch?v="
+        open_url(base + vid + "&autoplay=1")
+        return f"{nice} çalıyor."
+    open_url("https://www.youtube.com/results?search_query=" + urllib.parse.quote(q))
+    return f"YouTube'da {q} için sonuçları açtım."
+
+
+def music_command(text: str, n: str, settings):
+    src = settings.get("music_source") or "youtube"
+    m = re.search(r"spotify'?(?:da|dan|de|den)? (.+?) (?:şarkısını |şarkısı |listesini )?(aç|çal|oynat|dinle)$", n) or \
+        re.search(r"^(.+?) (?:şarkısını |şarkısı )?spotify'?(?:da|dan|de|den) (aç|çal|oynat)$", n)
+    if m:
+        return play_music(m.group(1), "spotify")
+    m = re.search(r"youtube m[uü]zik'?(?:te|ten|de|den)? (.+?) (aç|çal|oynat)$", n)
+    if m:
+        return play_music(m.group(1), "ytmusic")
+    m = re.search(r"youtube'?(?:da|dan|ta|tan|de|den)? (.+?) (?:videosunu |şarkısını )?(aç|çal|oynat|izle)$", n) or \
+        re.search(r"^(.+?) (?:videosunu |şarkısını )?youtube'?(?:da|dan|ta|tan|de|den) (aç|çal|oynat)$", n)
+    if m:
+        return play_music(m.group(1), "youtube" if src != "ytmusic" else "ytmusic")
+    if re.search(r"^(?:biraz |bana )?(?:müzik|şarkı) (aç|çal|koy)$", n):
+        return play_music("", src)
+    m = re.search(r"^(.+?) (?:şarkısını |şarkısı |müziği |müziğini |albümünü |çalma listesini )?(çal|oynat)$", n) or \
+        re.search(r"^(.+?) (?:şarkısını|şarkısı|müziğini|albümünü) (aç|dinle)$", n) or \
+        re.search(r"^(.+?) dinlemek istiyorum$", n)
+    if m and not re.search(r"\b(alarm|zil|telefon)", m.group(1)):
+        q = re.sub(r"^(bana |bir |biraz )+", "", m.group(1))
+        return play_music(q, src)
+    return None
+
+
 def extra_command(text: str, n: str):
     # haberler
     if re.search(r"\bhaber", n) and not re.search(r"haber ver", n):
@@ -325,6 +373,11 @@ def handle(text: str, settings):
     """Yanıt metni, özel istek sözlüğü (zamanlayıcı/ekran) ya da None (beyin yanıtlasın)."""
     n = norm(text)
     now = dt.datetime.now()
+
+    # --- müzik (YouTube / YouTube Music / Spotify) ---
+    r = music_command(text, n, settings)
+    if r:
+        return r
 
     # --- ekranı görme (beyne ekran görüntüsüyle sorulur) ---
     if re.search(VISION_RE, n):

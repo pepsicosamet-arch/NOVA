@@ -15,7 +15,7 @@
   <div class="brand">
     <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 L23 17 L38 20 L23 23 L20 38 L17 23 L2 20 L17 17 Z"/><circle cx="20" cy="20" r="4"/></svg>
     <div>
-      <h1>NOVA</h1>
+      <h1 id="brandName">NOVA</h1>
       <small id="ver">Kişisel asistan</small>
     </div>
   </div>
@@ -62,6 +62,17 @@
 
 <main class="stage">
   <canvas id="core" aria-label="NOVA çekirdeği"></canvas>
+  <section class="bulletin" id="bulletin" aria-label="Haber bülteni">
+    <div class="bl-head"><span class="live">CANLI</span><h2 id="blName">Gündem</h2><span class="sp"></span>
+      <button id="blRead">▶ Oku</button><button id="blPrev">‹</button><button id="blNext">›</button><button id="blClose">Kapat ✕</button></div>
+    <article class="bl-hero" id="blHero">
+      <div class="bl-img" id="blImg"><span class="src-mark" id="blMark"></span></div>
+      <div class="bl-body"><span class="bl-meta" id="blMeta"></span><h3 class="bl-title" id="blTitle"></h3><p class="bl-desc" id="blDesc"></p><span class="bl-open">Haberin tamamı için tıkla ↗</span></div>
+      <i class="bl-progress" id="blProg"></i>
+    </article>
+    <ol class="bl-list" id="blList"></ol>
+  </section>
+  <div class="ticker" id="ticker" hidden><span class="tk-label">SON DAKİKA</span><div class="tk-win"><div class="tk-track" id="tkTrack"></div></div></div>
   <div class="core-label"><span id="coreLabel">Hazırlanıyor</span></div>
 </main>
 
@@ -72,6 +83,7 @@
     <button role="tab" data-tab="timers" title="Zamanlayıcı"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span>Zaman</span><i class="badge" id="timerBadge" hidden></i></button>
     <button role="tab" data-tab="map" title="Harita"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Harita</span></button>
     <button role="tab" data-tab="notes" title="Notlar"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg><span>Notlar</span></button>
+    <button role="tab" data-tab="chips" title="Çipler"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/></svg><span>Çipler</span></button>
     <button role="tab" data-tab="help" title="Komutlar"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M9 9.5a3 3 0 1 1 3 3v1"/></svg><span>Komutlar</span></button>
   </nav>
 
@@ -82,7 +94,7 @@
       <button data-cat="dunya">Dünya</button><button data-cat="ekonomi">Ekonomi</button>
       <button data-cat="spor">Spor</button><button data-cat="teknoloji">Teknoloji</button>
     </div>
-    <div class="pane-actions"><button class="mini" id="newsRead">▶ Başlıkları oku</button><button class="mini" id="newsRefresh">↻ Yenile</button></div>
+    <div class="pane-actions"><button class="mini" id="newsRead">▶ Başlıkları oku</button><button class="mini" id="newsShow">⛶ Ekranda göster</button><button class="mini" id="newsRefresh">↻</button></div>
     <ul class="news" id="newsList"><li class="empty">Yükleniyor…</li></ul>
   </section>
 
@@ -133,11 +145,20 @@
     <ul class="notes" id="notesList"></ul>
   </section>
 
+  <!-- ÇİPLER -->
+  <section class="pane" data-pane="chips">
+    <div class="chip-grid" id="chipGrid"></div>
+    <p class="chip-note">Her çipin kendi tasarımı, rengi, sesi ve konuşma tarzı var. Sesle de değiştirebilirsin: <q>ATLAS'a geç</q>. Adlarını Ayarlar → Çipler'den değiştirebilirsin.</p>
+  </section>
+
   <!-- KOMUTLAR -->
   <section class="pane" data-pane="help">
     <ul class="hints">
       <li><q>Nova uyan</q> · <q>uyu</q></li>
-      <li><q>Son dakika haberlerini oku</q></li>
+      <li><q>Son dakika haberlerini oku</q> · <q>haberleri göster</q></li>
+      <li><q>YouTube'da Duman çal</q> · <q>Spotify'da Tarkan çal</q></li>
+      <li><q>Sezen Aksu şarkısını çal</q> · <q>biraz müzik aç</q></li>
+      <li><q>ATLAS'a geç</q> · <q>LYRA moduna geç</q> · <q>çipi değiştir</q></li>
       <li><q>Yarın saat 15:30 dişçi randevusu takvime ekle</q></li>
       <li><q>Bugün neler var?</q></li>
       <li><q>Saat 7'de beni uyandır</q></li>
@@ -218,6 +239,9 @@
       <label>Tanıma dili
         <select name="language"><option value="tr-TR">Türkçe</option><option value="en-US">English</option><option value="de-DE">Deutsch</option><option value="ar-SA">العربية</option><option value="az-AZ">Azərbaycanca</option></select>
       </label>
+      <label>Müzik kaynağı
+        <select name="music_source"><option value="youtube">YouTube (doğrudan çalar)</option><option value="ytmusic">YouTube Music</option><option value="spotify">Spotify (aramayı açar)</option></select>
+      </label>
       <label>Uyandırma kelimeleri <input name="wake_words"></label>
       <label>Uyutma kelimeleri <input name="sleep_words"></label>
     </fieldset>
@@ -235,6 +259,16 @@
       <label>TikTok kullanıcı adı <input name="tiktok_user"></label>
       <label>YouTube kullanıcı adı <input name="youtube_user"></label>
       <label>GitHub kullanıcı adı <input name="github_user"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Çipler</legend>
+      <label class="check"><input type="checkbox" name="chip_voice"> Her çip kendi sesini ve ses efektini kullansın</label>
+      <label>1. çip adı <input name="chip_name_nova" placeholder="NOVA"></label>
+      <label>2. çip adı <input name="chip_name_atlas" placeholder="ATLAS"></label>
+      <label>3. çip adı <input name="chip_name_lyra" placeholder="LYRA"></label>
+      <label>4. çip adı <input name="chip_name_kronos" placeholder="KRONOS"></label>
+      <p class="hint">Ad yalnızca çipin adını değiştirir; tasarımı, sesi ve kişiliği aynı kalır. Adlar uyandırma kelimesi olarak da çalışır.</p>
     </fieldset>
 
     <div class="actions">

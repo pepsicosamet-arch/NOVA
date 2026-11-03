@@ -12,14 +12,14 @@ VOICES = [
 ]
 
 
-def synth(text: str, voice: str = "tr-TR-AhmetNeural", rate: int = 0) -> bytes | None:
+def synth(text: str, voice: str = "tr-TR-AhmetNeural", rate: int = 0, pitch: int = 0) -> bytes | None:
     try:
         import edge_tts
     except ImportError:
         return None
 
     async def run():
-        com = edge_tts.Communicate(text, voice, rate=f"{int(rate):+d}%")
+        com = edge_tts.Communicate(text, voice, rate=f"{int(rate):+d}%", pitch=f"{int(pitch):+d}Hz")
         out = bytearray()
         async for chunk in com.stream():
             if chunk.get("type") == "audio":

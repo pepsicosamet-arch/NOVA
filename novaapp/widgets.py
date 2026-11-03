@@ -128,6 +128,24 @@ def news(category="gundem", limit=25):
     return {"category": category, "name": NEWS_NAMES[category], "items": items, "ok": bool(items)}
 
 
+# ======================= MÜZİK =======================
+BROWSER_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/130.0 Safari/537.36", "Accept-Language": "tr-TR,tr;q=0.9"}
+
+
+def youtube_first(query: str):
+    """YouTube aramasındaki ilk videonun kimliği (oynatmak için). Bulunamazsa None."""
+    try:
+        r = requests.get("https://www.youtube.com/results", params={"search_query": query},
+                         headers=BROWSER_UA, cookies={"CONSENT": "YES+1"}, timeout=8)
+        ids = re.findall(r'"videoRenderer":\{"videoId":"([\w-]{11})"', r.text) or \
+            re.findall(r'"videoId":"([\w-]{11})"', r.text)
+        return ids[0] if ids else None
+    except Exception as e:
+        log.warning("YouTube araması başarısız: %s", e)
+        return None
+
+
 # ======================= HAVA DURUMU =======================
 WMO = {0: ("Açık", "☀"), 1: ("Az bulutlu", "🌤"), 2: ("Parçalı bulutlu", "⛅"), 3: ("Kapalı", "☁"),
        45: ("Sisli", "🌫"), 48: ("Kırağılı sis", "🌫"), 51: ("Hafif çisenti", "🌦"), 53: ("Çisenti", "🌦"),
