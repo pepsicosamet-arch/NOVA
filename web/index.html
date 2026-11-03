@@ -198,20 +198,28 @@
     </div>
 
     <div class="vac-setup" id="vacSetup">
+      <h3>Şımart Katya T'yi bağla (bir kez)</h3>
+      <p class="chip-note">Şımart cihazları Tuya bulutunda çalışır (Şımart uygulaması Tuya'nın altyapısıyla yapılmış). Şımart hesabı dışarıya bağlantı izni vermediği için süpürgeyi aynı buluttaki <b>Smart Life</b> uygulamasına taşıyıp NOVA'yı oradan bağlıyoruz. Süpürge, harita ve ayarlar aynen çalışır.</p>
       <div class="scan-box">
-        <b>Süpürgen Tuya altyapılı mı?</b>
-        <p class="chip-note">Şımart uygulaması kendi uygulaması; süpürge içeride Tuya kullanıyorsa NOVA bağlanabilir. Bu tarama aynı Wi-Fi'daki Tuya cihazlarını dinler, hiçbir ayarı değiştirmez.</p>
-        <button type="button" class="mini" id="vacScan">📡 Wi-Fi'da Tuya cihazı ara</button>
+        <b>1 · Süpürgeyi Smart Life'a taşı</b>
+        <ol class="steps">
+          <li>Şımart'ta süpürge → sağ üst ✎ → <b>Cihazı kaldır</b>.</li>
+          <li>Telefona <b>Smart Life</b>'ı kur, hesap aç. Süpürgeyi eşleştirme moduna al: Katya T'de genelde güç tuşuna <b>3-5 sn</b> basılı tut, sesli uyarı gelir.</li>
+          <li>Smart Life → <b>+ Cihaz ekle</b>. Süpürge kendiliğinden bulunur. Ev Wi-Fi'ını (2.4 GHz) seç.</li>
+        </ol>
+        <button type="button" class="mini" id="vacScan">📡 Süpürge Wi-Fi'da görünüyor mu?</button>
         <ul class="contacts" id="vacScanList"></ul>
       </div>
-      <h3>Robot süpürgeyi bağla (bir kez)</h3>
-      <ol class="steps">
-        <li><a class="link" data-url="https://iot.tuya.com">iot.tuya.com</a>'da ücretsiz hesap aç.</li>
-        <li><b>Cloud → Development → Create Cloud Project</b>: Industry <b>Smart Home</b>, Data Center <b>Central Europe</b>.</li>
-        <li>Projenin <b>Overview</b> sayfasındaki <b>Access ID</b> ve <b>Access Secret</b>'ı aşağıya yapıştır.</li>
-        <li><b>Devices → Link App Account → Add App Account</b>: çıkan QR'ı Smart Life / Tuya uygulamasında <b>Ben → sağ üstteki tarama</b> ile okut.</li>
-        <li>Süpürgenin kimliği: Smart Life'ta süpürge → sağ üst ✎ → <b>Cihaz Bilgisi → Sanal Kimlik</b>. Ya da kaydedip "Cihazları bul"a bas.</li>
-      </ol>
+      <div class="scan-box">
+        <b>2 · NOVA'ya izin ver</b>
+        <ol class="steps">
+          <li><a class="link" data-url="https://iot.tuya.com">iot.tuya.com</a>'da ücretsiz hesap aç.</li>
+          <li><b>Cloud → Development → Create Cloud Project</b>: Industry <b>Smart Home</b>, Data Center <b>Central Europe</b>.</li>
+          <li>Projenin <b>Overview</b> sayfasındaki <b>Access ID</b> ve <b>Access Secret</b>'ı aşağıya yapıştır.</li>
+          <li><b>Devices → Link App Account → Add App Account</b>: çıkan QR'ı Smart Life'ta <b>Ben → sağ üstteki tarama</b> ile okut.</li>
+          <li>Kaydet, sonra <b>Cihazları bul</b>'a bas ve listeden süpürgeyi seç.</li>
+        </ol>
+      </div>
       <form class="inline-form" id="vacForm" autocomplete="off">
         <input name="tuya_key" placeholder="Access ID / Client ID">
         <input name="tuya_secret" type="password" placeholder="Access Secret / Client Secret (değiştirmeyeceksen boş bırak)">

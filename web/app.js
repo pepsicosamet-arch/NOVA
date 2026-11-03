@@ -567,11 +567,11 @@ $("#vacScan").onclick = async () => {
   const r = await api.home_scan();
   ul.innerHTML = "";
   if (!r || !r.ok) { ul.innerHTML = `<li class="empty">Tarama yapılamadı: ${esc((r && r.error) || "")}</li>`; return; }
-  if (!r.devices.length) { ul.innerHTML = '<li class="empty">Ağda Tuya cihazı bulunamadı. Süpürge açık ve aynı Wi-Fi\'daysa, büyük ihtimalle Tuya kullanmıyor.</li>'; return; }
+  if (!r.devices.length) { ul.innerHTML = '<li class="empty">Ağda Şımart/Tuya cihazı görünmedi. Süpürge açık mı, aynı Wi-Fi\'da mı? Bilgisayar Wi-Fi yerine kabloyla bağlıysa da görünmeyebilir; 2. adıma geçebilirsin.</li>'; return; }
   for (const d of r.devices) {
     const li = document.createElement("li");
     li.innerHTML = '<span class="av">✓</span><span><span class="nm"></span><small></small></span>';
-    li.querySelector(".nm").textContent = "Tuya cihazı · " + d.ip;
+    li.querySelector(".nm").textContent = "Şımart cihazı · " + d.ip;
     li.querySelector("small").textContent = `kimlik ${d.id} · sürüm ${d.version || "?"}`;
     li.style.cursor = "pointer";
     li.onclick = () => { $("#vacForm").tuya_device.value = d.id; toast("Cihaz kimliği forma yazıldı."); };

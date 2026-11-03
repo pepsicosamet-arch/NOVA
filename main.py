@@ -728,7 +728,7 @@ class Nova:
         if not self.vacuum.configured():
             self.show_window()
             self.emit("panel", name="home")
-            return "Robot süpürge henüz bağlı değil. Ev menüsündeki adımlarla Tuya hesabını bir kez bağlaman gerekiyor."
+            return "Robot süpürge henüz bağlı değil. Ev menüsündeki adımlarla Şımart süpürgeni bir kez bağlaman gerekiyor."
         try:
             if action == "status":
                 st = self.vacuum.status()

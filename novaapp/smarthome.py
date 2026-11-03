@@ -1,4 +1,7 @@
-"""Akıllı ev: Tuya Smart / Smart Life cihazları (ilk olarak robot süpürge).
+"""Akıllı ev: Şımart (Tuya/ThingClips altyapılı) cihazlar — ilk olarak Katya T robot süpürge.
+
+Şımart uygulaması (com.lemo.simarttest) Tuya'nın OEM SDK'sıyla yapılmıştır; cihazlar Tuya bulutundadır.
+Şımart hesabı dış erişim vermediği için cihaz Smart Life'a taşınır ve aşağıdaki resmî API kullanılır.
 
 Bağlantı Tuya'nın resmî bulut API'si (iot.tuya.com) ile yapılır. Kurulum bir kez:
   1. iot.tuya.com'da ücretsiz hesap aç → Cloud → Create Cloud Project
@@ -178,7 +181,7 @@ def _err_text(r):
     msg = str(r.get("msg") or r.get("Error") or r.get("Payload") or r) if isinstance(r, dict) else str(r)
     low = msg.lower()
     if "sign invalid" in low or "secret" in low or "1004" in msg:
-        return "Tuya Access ID ya da Secret hatalı."
+        return "Access ID ya da Secret hatalı (iot.tuya.com proje sayfasındakileri yapıştır)."
     if "permission deny" in low or "1106" in msg:
         return ("Tuya izin vermedi. iot.tuya.com'da Smart Life hesabını projeye bağladığından (Link App Account) "
                 "ve veri merkezinin Avrupa olduğundan emin ol.")
