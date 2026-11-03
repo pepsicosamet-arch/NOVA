@@ -45,10 +45,8 @@
   <button data-menu="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Harita</span></button>
   <button data-menu="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg><span>Notlar</span></button>
   <button data-menu="tv"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 2l4 4 4-4M7 22h10"/></svg><span>Canlı TV</span></button>
-  <button data-menu="home"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg><span>Ev</span></button>
   <button data-menu="camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg><span>Kamera</span></button>
   <button data-menu="phone"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg><span>Telefon</span></button>
-  <button data-menu="messages"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg><span>Mesaj</span></button>
   <button data-menu="chips"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>Çipler</span></button>
   <button data-menu="help"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M9 9.5a3 3 0 1 1 3 3v1"/></svg><span>Komutlar</span></button>
   <span class="mb-sp"></span>
@@ -174,64 +172,6 @@
     <p class="chip-note">Kanallar kendi resmî canlı yayın sayfalarında, ayrı bir pencerede açılır. Sesle de olur: <q>TRT 1'i aç</q>, <q>Habertürk canlı</q>.</p>
   </section>
 
-  <!-- AKILLI EV -->
-  <section class="pane" data-pane="home">
-    <div class="vac" id="vacCard" hidden>
-      <div class="vac-top">
-        <div class="vac-ic"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19"/><circle cx="24" cy="24" r="6"/><path d="M14 13l4 4M34 13l-4 4"/></svg></div>
-        <div><b>Robot Süpürge</b><span id="vacState">—</span></div>
-        <button class="mini" id="vacRefresh" title="Yenile">↻</button>
-      </div>
-      <div class="vac-bat"><i><s id="vacBatBar"></s></i><b id="vacBat">--%</b></div>
-      <div class="vac-btns">
-        <button data-vac="start" class="go">▶ Başlat</button>
-        <button data-vac="pause">⏸ Durdur</button>
-        <button data-vac="dock">⌂ Şarja dön</button>
-        <button data-vac="seek">🔊 Bul</button>
-      </div>
-      <h3>Emiş gücü <span class="sub" id="vacSuction"></span></h3>
-      <div class="chips" id="vacSuct"><button data-s="sessiz">Sessiz</button><button data-s="normal">Normal</button><button data-s="güçlü">Güçlü</button><button data-s="maksimum">Maksimum</button></div>
-      <h3>Mod</h3>
-      <div class="chips" id="vacMode"><button data-m="kenar">Kenar</button><button data-m="spiral">Spiral</button><button data-m="nokta">Nokta</button><button data-m="paspas">Paspas</button></div>
-      <p class="chip-note">Sesle: <q>süpürgeyi başlat</q>, <q>süpürgeyi şarja gönder</q>, <q>süpürge nerede</q>, <q>süpürgenin şarjı kaç</q>, <q>emiş gücünü maksimum yap</q>.</p>
-      <button class="mini" id="vacEdit">⚙ Bağlantı ayarları</button>
-    </div>
-
-    <div class="vac-setup" id="vacSetup">
-      <h3>Şımart Katya T'yi bağla (bir kez)</h3>
-      <p class="chip-note">Şımart cihazları Tuya bulutunda çalışır (Şımart uygulaması Tuya'nın altyapısıyla yapılmış). Şımart hesabı dışarıya bağlantı izni vermediği için süpürgeyi aynı buluttaki <b>Smart Life</b> uygulamasına taşıyıp NOVA'yı oradan bağlıyoruz. Süpürge, harita ve ayarlar aynen çalışır.</p>
-      <div class="scan-box">
-        <b>1 · Süpürgeyi Smart Life'a taşı</b>
-        <ol class="steps">
-          <li>Şımart'ta süpürge → sağ üst ✎ → <b>Cihazı kaldır</b>.</li>
-          <li>Telefona <b>Smart Life</b>'ı kur, hesap aç. Süpürgeyi eşleştirme moduna al: Katya T'de genelde güç tuşuna <b>3-5 sn</b> basılı tut, sesli uyarı gelir.</li>
-          <li>Smart Life → <b>+ Cihaz ekle</b>. Süpürge kendiliğinden bulunur. Ev Wi-Fi'ını (2.4 GHz) seç.</li>
-        </ol>
-        <button type="button" class="mini" id="vacScan">📡 Süpürge Wi-Fi'da görünüyor mu?</button>
-        <ul class="contacts" id="vacScanList"></ul>
-      </div>
-      <div class="scan-box">
-        <b>2 · NOVA'ya izin ver</b>
-        <ol class="steps">
-          <li><a class="link" data-url="https://iot.tuya.com">iot.tuya.com</a>'da ücretsiz hesap aç.</li>
-          <li><b>Cloud → Development → Create Cloud Project</b>: Industry <b>Smart Home</b>, Data Center <b>Central Europe</b>.</li>
-          <li>Projenin <b>Overview</b> sayfasındaki <b>Access ID</b> ve <b>Access Secret</b>'ı aşağıya yapıştır.</li>
-          <li><b>Devices → Link App Account → Add App Account</b>: çıkan QR'ı Smart Life'ta <b>Ben → sağ üstteki tarama</b> ile okut.</li>
-          <li>Kaydet, sonra <b>Cihazları bul</b>'a bas ve listeden süpürgeyi seç.</li>
-        </ol>
-      </div>
-      <form class="inline-form" id="vacForm" autocomplete="off">
-        <input name="tuya_key" placeholder="Access ID / Client ID">
-        <input name="tuya_secret" type="password" placeholder="Access Secret / Client Secret (değiştirmeyeceksen boş bırak)">
-        <select name="tuya_region"><option value="eu">Avrupa (Türkiye için)</option><option value="us">Amerika</option><option value="in">Hindistan</option><option value="cn">Çin</option><option value="sg">Singapur</option></select>
-        <input name="tuya_device" placeholder="Süpürgenin cihaz kimliği (Sanal Kimlik)">
-        <div class="row end"><button type="button" class="ghost" id="vacFind">Cihazları bul</button><button class="primary">Kaydet ve bağlan</button></div>
-      </form>
-      <ul class="contacts" id="vacDevs"></ul>
-      <p class="chip-note" id="vacErr"></p>
-    </div>
-  </section>
-
   <!-- KAMERA -->
   <section class="pane pane-cam" data-pane="camera">
     <div class="cam-box"><video id="camVideo" autoplay playsinline muted></video><canvas id="camCanvas" hidden></canvas>
@@ -261,22 +201,6 @@
     <p class="chip-note">Telefondan: NOVA'ya yaz, hızlı komut gönder, fotoğraf ve dosya yolla (Resimler\NOVA\Telefon), panoyu paylaş.</p>
   </section>
 
-  <!-- MESAJ -->
-  <section class="pane" data-pane="messages">
-    <div class="seg seg3 plat" id="msgPlat">
-      <label><input type="radio" name="mplat" value="whatsapp" checked><span>WhatsApp</span></label>
-      <label><input type="radio" name="mplat" value="telegram"><span>Telegram</span></label>
-      <label><input type="radio" name="mplat" value="x"><span>X</span></label>
-    </div>
-    <form class="inline-form" id="msgForm" autocomplete="off">
-      <input name="to" id="msgTo" placeholder="Kime? (uygulamada kayıtlı adı)" maxlength="60">
-      <textarea name="text" rows="3" maxlength="1000" placeholder="Mesajın…" required></textarea>
-      <div class="row end"><span class="muted" id="msgHint"></span><button class="primary" id="msgBtn">Gönder</button></div>
-    </form>
-    <p class="chip-note">Numara gerekmez: NOVA uygulamayı açar, kişiyi uygulamanın kendi aramasında bulur ve mesajı gönderir. Kişinin adını telefonunda/WhatsApp'ta kayıtlı olduğu gibi yaz.<br>Sesle: <q>WhatsApp'tan Ahmet'e akşam görüşürüz yaz</q> · <q>X'te paylaş: …</q></p>
-    <p class="chip-note" id="appsInfo"></p>
-  </section>
-
   <!-- ÇİPLER -->
   <section class="pane" data-pane="chips">
     <div class="chip-grid" id="chipGrid"></div>
@@ -292,7 +216,6 @@
       <li><q>Sezen Aksu şarkısını çal</q> · <q>biraz müzik aç</q></li>
       <li><q>ATLAS'a geç</q> · <q>LAYRA moduna geç</q> · <q>çipi değiştir</q></li>
       <li><q>TRT 1'i aç</q> · <q>canlı TV aç</q></li>
-      <li><q>Süpürgeyi başlat</q> · <q>süpürgeyi şarja gönder</q> · <q>süpürge nerede</q></li>
       <li><q>Son depremler</q> · <q>Akşam ezanı ne zaman?</q></li>
       <li><q>25 çarpı 4 kaç eder</q> · <q>200'ün yüzde 15'i kaç</q></li>
       <li><q>Panodakini oku</q> · <q>Bilgisayarı kapat</q></li>

@@ -200,7 +200,7 @@ def _open(uri: str) -> bool:
 # ---------------- gönderme ----------------
 def send(platform, contact, text, settings, wait=None):
     """Mesajı gönderir. (başarılı mı, kullanıcıya söylenecek metin) döndürür."""
-    auto = bool(settings.get("msg_auto_send"))
+    auto = True   # kullanıcı istedi: onay sormadan, doğrudan gönder
     wait = wait or float(settings.get("msg_wait") or 4)
     name = contact["name"] if contact else ""
 
@@ -284,45 +284,11 @@ def send_by_search(platform, name, text, auto, wait):
     """Numara gerekmeden: uygulamayı aç, kişiyi uygulamanın kendi aramasında bul, mesajı yaz, gönder."""
     apps = installed()
     if not apps.get(platform):
-        if platform == "whatsapp":
-            webbrowser.open("https://web.whatsapp.com/")
-            wait += 8
-            where = "WhatsApp Web"
-        else:
-            return False, ("Telegram uygulaması bu bilgisayarda kurulu değil. Telegram Desktop'u kurarsan "
-                           "kişinin adıyla doğrudan gönderebilirim.")
-    else:
-        # Masaüstü uygulaması: Windows UI Otomasyonu ile kişiyi bul ve gönder (sonucu bekler)
-        from . import wa_auto
-        return wa_auto.send(platform, name, text, auto, wait)
-    if not IS_WIN:
-        return False, "Otomatik gönderme yalnızca Windows'ta çalışır."
-    title = "WhatsApp" if platform == "whatsapp" else "Telegram"
-
-    def go():
-        time.sleep(wait)
-        focus_window(title)
-        time.sleep(0.4)
-        if platform == "telegram":
-            _keys(0x1B); time.sleep(0.2); _keys(0x1B); time.sleep(0.2)   # Esc: sohbet listesine dön
-        _keys(VK_CONTROL, 0x46)                    # Ctrl+F: sohbet ara
-        time.sleep(0.5)
-        _keys(VK_CONTROL, 0x41)                    # Ctrl+A: eski aramayı sil
-        set_clipboard(name)
-        _keys(VK_CONTROL, VK_V)
-        time.sleep(1.8)                            # sonuçların gelmesini bekle
-        _keys(VK_RETURN)                           # ilk sonucu aç
-        time.sleep(1.4)
-        set_clipboard(text)
-        _keys(VK_CONTROL, VK_V)
-        if auto:
-            time.sleep(0.5)
-            _keys(VK_RETURN)
-
-    threading.Thread(target=go, daemon=True).start()
-    if auto:
-        return True, f"{where} açılıyor; {name} sohbetini bulup gönderiyorum. Birkaç saniye bilgisayara dokunma."
-    return True, f"{where} açılıyor; {name} sohbetine mesajı yazıyorum, göndermek için Enter'a bas."
+        nm = "WhatsApp" if platform == "whatsapp" else "Telegram"
+        return False, f"{nm} uygulaması bu bilgisayarda yüklü değil. Microsoft Store'dan {nm}'ı kurarsan mesajı doğrudan gönderirim."
+    # Masaüstü uygulaması: Windows UI Otomasyonu ile kişiyi bul ve gönder (sonucu bekler)
+    from . import wa_auto
+    return wa_auto.send(platform, name, text, auto, wait)
 
 
 def share_url(platform, text, url=""):
@@ -380,6 +346,7 @@ PLAT_RE = {
 def parse(text: str, n: str, contacts):
     """'WhatsApp'tan anneme geliyorum yaz' → {'platform', 'contact', 'text'} ya da None."""
     platform = next((p for p, rx in PLAT_RE.items() if re.search(rx, n)), None)
+    implicit = not platform
     if not platform:
         # platform söylenmediyse: "ömrüm kişisine ... mesaj gönder" → WhatsApp
         if (re.search(r"kişisine", n) and re.search(r"\b(gönder|yolla|ilet|yaz|at)\w*\s*$", n)) or \
@@ -433,4 +400,4 @@ def parse(text: str, n: str, contacts):
     i = low.find(body)
     if i >= 0:
         body = text[i:i + len(body)]
-    return {"platform": platform, "contact": contact, "text": body[:1].upper() + body[1:]}
+    return {"platform": platform, "contact": contact, "text": body[:1].upper() + body[1:], "implicit": implicit}

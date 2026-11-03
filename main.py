@@ -407,7 +407,7 @@ class Nova:
             self.pending = {"stage": "power", "kind": kind}
             return self.say(extras.POWER[kind][0][:1].upper() + extras.POWER[kind][0][1:] + "?")
         # --- akıllı ev: robot süpürge ---
-        vi = smarthome.intent(n)
+        vi = smarthome.intent(n) if self.vacuum.configured() else None   # Ev bölümü kaldırıldı: yalnız önceden bağlıysa
         if vi:
             return self.say(self.vacuum_do(*vi))
 
@@ -726,8 +726,6 @@ class Nova:
     # ---------------- akıllı ev ----------------
     def vacuum_do(self, action, arg=None):
         if not self.vacuum.configured():
-            self.show_window()
-            self.emit("panel", name="home")
             return "Robot süpürge henüz bağlı değil. Ev menüsündeki adımlarla Şımart süpürgeni bir kez bağlaman gerekiyor."
         try:
             if action == "status":
@@ -791,6 +789,16 @@ class Nova:
 
     def message_send(self, m):
         self.emit("msg_preview", hide=True)
+        # Yalnızca bilgisayarda yüklü WhatsApp / Telegram uygulamasından gönder
+        if m["platform"] in ("whatsapp", "telegram"):
+            apps = social.installed()
+            if not apps.get(m["platform"]):
+                other = "telegram" if m["platform"] == "whatsapp" else "whatsapp"
+                if m.get("implicit") and apps.get(other):
+                    m["platform"] = other            # uygulama söylenmediyse yüklü olanı kullan
+                elif not apps.get("whatsapp") and not apps.get("telegram"):
+                    return self.say("Bu bilgisayarda WhatsApp ya da Telegram uygulaması yüklü değil. "
+                                    "Birini Microsoft Store'dan kurarsan mesajları doğrudan gönderirim.")
         ok, msg = social.send(m["platform"], m.get("contact"), m["text"], self.settings)
         log.info("Mesaj (%s → %s): %s", m["platform"], (m.get("contact") or {}).get("name", "-"), ok)
         self.emit("msg_sent", ok=ok, platform=m["platform"], to=(m.get("contact") or {}).get("name", ""),

@@ -27,7 +27,7 @@
     <div class="partial" id="partial"></div>
     <div class="suggest" id="suggest">
       <button>Hava nasıl?</button><button>Gündemi oku</button><button>Tarkan çal</button>
-      <button>10 dakika zamanlayıcı</button><button>Dolar kaç?</button><button>Süpürgeyi başlat</button>
+      <button>10 dakika zamanlayıcı</button><button>Dolar kaç?</button><button>Deprem var mı?</button>
     </div>
     <div class="dock">
       <form class="ask" id="askForm" autocomplete="off">
@@ -73,35 +73,6 @@
       <ul class="list" id="noteList"></ul>
     </div>
 
-    <!-- EV -->
-    <div class="view" data-view="ev">
-      <div class="vac" id="vacCard">
-        <div class="vac-head"><div class="vac-ico">🤖</div><div><b>Şımart Katya T</b><span id="vacState">bağlı değil</span></div><div class="bat"><i><s id="vacBatBar"></s></i><b id="vacBat">--%</b></div></div>
-        <div class="grid4">
-          <button data-vac="start" class="go">▶<span>Başlat</span></button>
-          <button data-vac="pause">⏸<span>Durdur</span></button>
-          <button data-vac="dock">⌂<span>Şarja dön</span></button>
-          <button data-vac="seek">🔊<span>Bul</span></button>
-        </div>
-        <h4>Emiş gücü</h4>
-        <div class="seg" id="vacSuct"><button data-s="sessiz">Sessiz</button><button data-s="normal">Normal</button><button data-s="güçlü">Güçlü</button><button data-s="maksimum">Maks</button></div>
-        <h4>Mod</h4>
-        <div class="seg" id="vacMode"><button data-m="kenar">Kenar</button><button data-m="spiral">Spiral</button><button data-m="nokta">Nokta</button><button data-m="paspas">Paspas</button></div>
-        <p class="note">Sesle: <q>süpürgeyi başlat</q>, <q>şarja gönder</q>, <q>süpürgenin şarjı kaç</q>.</p>
-      </div>
-      <details class="setup" id="vacSetup">
-        <summary>⚙ Süpürge bağlantısı</summary>
-        <p class="note">Bilgisayardaki NOVA'da süpürge bağlıysa ve telefon bilgisayara bağlıysa ayar gerekmez; komutlar bilgisayar üzerinden gider. Telefondan doğrudan kontrol için bilgisayardaki <b>Ev</b> menüsünde kullandığın aynı bilgileri gir:</p>
-        <form class="form" id="vacForm" autocomplete="off">
-          <input name="tuya_key" placeholder="Access ID">
-          <input name="tuya_secret" type="password" placeholder="Access Secret">
-          <select name="tuya_region"><option value="eu">Avrupa (Türkiye)</option><option value="us">Amerika</option><option value="in">Hindistan</option><option value="cn">Çin</option></select>
-          <input name="tuya_device" placeholder="Süpürgenin cihaz kimliği">
-          <button class="primary">Kaydet</button>
-        </form>
-      </details>
-    </div>
-
     <!-- BİLGİSAYAR -->
     <div class="view" data-view="pc">
       <div class="pc-status" id="pcStatus"><b>Bilgisayar bağlı değil</b><span>Bilgisayardaki NOVA'da <b>Telefon</b> menüsünü aç ve QR kodu okut.</span></div>
@@ -109,7 +80,7 @@
       <div class="row"><button class="primary" id="scanBtn">📷 QR kodu okut</button><button class="ghost" id="pcPaste">Bağlantıyı yapıştır</button></div>
       <div class="pc-tools" id="pcTools" hidden>
         <h3>Bilgisayara komut</h3>
-        <form class="ask small" id="pcForm"><input id="pcInput" placeholder="örn. Spotify'ı aç, Ahmet'e merhaba yaz"><button class="send">➤</button></form>
+        <form class="ask small" id="pcForm"><input id="pcInput" placeholder="örn. Spotify'ı aç, Ahmet'e WhatsApp'tan merhaba yaz"><button class="send">➤</button></form>
         <div class="row wrap">
           <button class="ghost" data-pc="sesi kıs">🔉 Ses −</button><button class="ghost" data-pc="sesi aç">🔊 Ses +</button>
           <button class="ghost" data-pc="sonraki şarkı">⏭ Sonraki</button><button class="ghost" data-pc="müziği durdur">⏯ Durdur</button>
@@ -169,7 +140,6 @@
   <button data-go="home" class="on"><span>◉</span>Ana</button>
   <button data-go="news"><span>▤</span>Gündem</button>
   <button data-go="tools"><span>⏱</span>Araçlar</button>
-  <button data-go="ev"><span>⌂</span>Ev</button>
   <button data-go="pc"><span>🖥</span>PC</button>
   <button data-go="more"><span>☰</span>Daha</button>
 </nav>

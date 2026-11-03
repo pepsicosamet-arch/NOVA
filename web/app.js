@@ -212,7 +212,6 @@ window.novaEvent = ev => {
     case "update": showUpdate(ev); break;
     case "chip": applyChip(ev.chip, ev.chips); break;
     case "msg_preview": showMsgPreview(ev); break;
-    case "home": if (ev.status) showVac(ev.status); break;
     case "camera":
       if (ev.action === "open") camOpen();
       else if (ev.action === "close") camStop();
@@ -290,9 +289,7 @@ function selectTab(name) {
   if (name === "calendar") renderCal();
   if (name === "notes") loadNotes();
   if (name === "map") initMap();
-  if (name === "messages") loadContacts();
   if (name === "phone") loadPhone();
-  if (name === "home") loadHome();
   if (name !== "camera" && camStream) camStop();
   $$("#menubar [data-menu]").forEach(b => b.classList.toggle("on", b.dataset.menu === name));
 }
@@ -422,34 +419,6 @@ $$("#menubar [data-menu]").forEach(b => b.onclick = () => {
 });
 
 /* ---------- mesajlaşma ---------- */
-let contacts = [];
-const PLAT_COLOR = { whatsapp: "#25d366", telegram: "#2aabee", x: "#e7e9ea" };
-const PLAT_NAME = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
-function msgPlat() { return (document.querySelector("[name=mplat]:checked") || {}).value || "whatsapp"; }
-let apps = {};
-async function loadContacts() {
-  apps = await api.apps() || {};
-  const names = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
-  $("#appsInfo").textContent = "Bu bilgisayarda: " + Object.keys(names).map(k => `${names[k]} ${apps[k] ? "uygulaması ✓" : "(web)"}`).join(" · ");
-  msgPlatChanged();
-}
-function msgPlatChanged() {
-  const p = msgPlat();
-  $("#msgTo").hidden = p === "x";
-  $("#msgBtn").textContent = p === "x" ? "Paylaş" : "Gönder";
-  const where = apps[p] ? "PC uygulaması ✓" : (p === "x" ? "tarayıcıda X" : "web sürümü");
-  const auto = info && info.settings.msg_auto_send;
-  $("#msgHint").textContent = where + " · " + (p === "x" ? (auto ? "otomatik paylaşır" : "gönderi hazır açılır") : (auto ? "otomatik gönderir" : "sohbet hazır açılır"));
-}
-$$("[name=mplat]").forEach(r => r.onchange = msgPlatChanged);
-$("#msgForm").onsubmit = async e => {
-  e.preventDefault();
-  const f = e.target, text = f.text.value.trim();
-  if (!text) return;
-  const r = await api.msg_send(msgPlat(), f.to.value, text);
-  toast(r ? r.text : "Gönderilemedi.", r && r.ok ? "" : "error");
-  if (r && r.ok) f.text.value = "";
-};
 function showMsgPreview(ev) {
   const card = $("#msgCard");
   if (ev.hide) { card.hidden = true; return; }
@@ -526,73 +495,6 @@ async function loadPhone() { showPhone(await api.phone_info()); }
 $("#phoneOn").onchange = async e => showPhone(await api.phone_toggle(e.target.checked));
 $("#phoneReset").onclick = async () => { showPhone(await api.phone_reset()); toast("Yeni QR oluşturuldu; eski bağlantılar geçersiz."); };
 $("#phoneLink").onclick = () => api.send_text("telefon bağlantısı uygulamasını aç");
-
-/* ---------- akıllı ev: robot süpürge ---------- */
-function showHome(h) {
-  if (!h) return;
-  const ok = h.configured && !h.error;
-  $("#vacCard").hidden = !h.configured;
-  $("#vacSetup").hidden = h.configured && !h.error && !$("#vacSetup").dataset.force;
-  $("#vacErr").textContent = h.error || "";
-  if (h.status) showVac(h.status);
-  const f = $("#vacForm");
-  if (info) { f.tuya_key.value = info.settings.tuya_key || ""; f.tuya_device.value = info.settings.tuya_device || ""; f.tuya_region.value = info.settings.tuya_region || "eu"; }
-}
-function showVac(st) {
-  $("#vacState").textContent = st.status_tr ? st.status_tr[0].toUpperCase() + st.status_tr.slice(1) : "—";
-  $("#vacBat").textContent = st.battery == null ? "--%" : st.battery + "%";
-  $("#vacBatBar").style.width = (st.battery || 0) + "%";
-  $("#vacSuction").textContent = st.suction_tr ? "· " + st.suction_tr : "";
-  $("#vacCard").classList.toggle("working", /temizlik|paspas|dönüyor|spiral|kenar/.test(st.status_tr || ""));
-}
-async function loadHome() { showHome(await api.home_info()); }
-$$("[data-vac]").forEach(b => b.onclick = async () => { b.disabled = true; await api.home_cmd(b.dataset.vac); b.disabled = false; });
-$$("#vacSuct [data-s]").forEach(b => b.onclick = () => api.home_cmd("suction", b.dataset.s));
-$$("#vacMode [data-m]").forEach(b => b.onclick = () => api.home_cmd("mode", b.dataset.m));
-$("#vacRefresh").onclick = loadHome;
-$("#vacEdit").onclick = () => { const s = $("#vacSetup"); s.dataset.force = s.hidden ? "1" : ""; s.hidden = !s.hidden; };
-$("#vacForm").onsubmit = async e => {
-  e.preventDefault();
-  const f = e.target;
-  $("#vacErr").textContent = "Bağlanıyor…";
-  const r = await api.home_save({ tuya_key: f.tuya_key.value.trim(), tuya_secret: f.tuya_secret.value.trim(), tuya_region: f.tuya_region.value, tuya_device: f.tuya_device.value.trim() });
-  info.settings.tuya_key = f.tuya_key.value.trim(); info.settings.tuya_device = f.tuya_device.value.trim(); info.settings.tuya_region = f.tuya_region.value;
-  f.tuya_secret.value = "";
-  $("#vacSetup").dataset.force = "";
-  showHome(r);
-  toast(r.configured && !r.error ? "🧹 Robot süpürge bağlandı." : (r.error || "Bilgiler eksik."), r.error ? "error" : "");
-};
-$("#vacScan").onclick = async () => {
-  const ul = $("#vacScanList"); ul.innerHTML = '<li class="empty">Wi-Fi dinleniyor (yaklaşık 10 sn)…</li>';
-  const r = await api.home_scan();
-  ul.innerHTML = "";
-  if (!r || !r.ok) { ul.innerHTML = `<li class="empty">Tarama yapılamadı: ${esc((r && r.error) || "")}</li>`; return; }
-  if (!r.devices.length) { ul.innerHTML = '<li class="empty">Ağda Şımart/Tuya cihazı görünmedi. Süpürge açık mı, aynı Wi-Fi\'da mı? Bilgisayar Wi-Fi yerine kabloyla bağlıysa da görünmeyebilir; 2. adıma geçebilirsin.</li>'; return; }
-  for (const d of r.devices) {
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="av">✓</span><span><span class="nm"></span><small></small></span>';
-    li.querySelector(".nm").textContent = "Şımart cihazı · " + d.ip;
-    li.querySelector("small").textContent = `kimlik ${d.id} · sürüm ${d.version || "?"}`;
-    li.style.cursor = "pointer";
-    li.onclick = () => { $("#vacForm").tuya_device.value = d.id; toast("Cihaz kimliği forma yazıldı."); };
-    ul.appendChild(li);
-  }
-};
-$("#vacFind").onclick = async () => {
-  const ul = $("#vacDevs"); ul.innerHTML = '<li class="empty">Aranıyor…</li>';
-  const r = await api.home_devices();
-  ul.innerHTML = "";
-  if (!r || !r.ok) { ul.innerHTML = `<li class="empty">${esc((r && r.error) || "Cihazlar alınamadı. Önce Access ID/Secret ve bir cihaz kimliği kaydet.")}</li>`; return; }
-  for (const d of r.devices) {
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="av">⌂</span><span><span class="nm"></span><small></small></span>';
-    li.querySelector(".nm").textContent = d.name || d.id;
-    li.querySelector("small").textContent = `${d.id}${d.category === "sd" ? " · robot süpürge" : ""}${d.online ? " · çevrimiçi" : ""}`;
-    li.style.cursor = "pointer";
-    li.onclick = () => { $("#vacForm").tuya_device.value = d.id; toast("Cihaz seçildi, şimdi Kaydet'e bas."); };
-    ul.appendChild(li);
-  }
-};
 
 /* ---------- canlı TV ---------- */
 function renderTv(list) {

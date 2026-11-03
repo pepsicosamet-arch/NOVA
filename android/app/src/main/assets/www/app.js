@@ -241,7 +241,7 @@ async function command(raw) {
 
   // robot süpürge
   const v = vacIntent(n);
-  if (v) return vacuumDo(v[0], v[1], raw);
+  if (v && (tuyaReady() || pc.ok)) return vacuumDo(v[0], v[1], raw);
 
   // mesaj
   if (/(whatsapp|vatsap|watsap|wasap|telegram|mesaj)/.test(n) || /\b(yaz|gönder|mesaj at)$/.test(n) && /'?(y?[ae]|n[ae])\s/.test(n)) {
@@ -612,7 +612,7 @@ async function vacStatus() {
 async function vacuumDo(action, arg, raw) {
   if (!tuyaReady()) {
     if (pc.ok) return pcSend(raw);
-    go("ev"); return "Süpürge için önce telefonu bilgisayardaki NOVA'ya bağla ya da Ev menüsündeki süpürge bağlantısını gir.";
+    return "Süpürge için önce telefonu bilgisayardaki NOVA'ya bağla.";
   }
   const f = await vacFunctions();
   if (action === "status") { const s = await vacStatus(); return `Süpürge ${s.status_tr}` + (s.battery != null ? `, şarjı yüzde ${s.battery}.` : "."); }
@@ -641,22 +641,7 @@ async function vacuumDo(action, arg, raw) {
     if (!v) throw new Error(`Süpürge ${arg} modunu desteklemiyor.`); await vacSend([{ code: "mode", value: v }]); return `${arg[0].toLocaleUpperCase("tr-TR") + arg.slice(1)} modu başladı.`;
   }
 }
-function renderVac(o) {
-  $("#vacState").textContent = o.status_tr || "—";
-  if (o.battery != null) { $("#vacBat").textContent = o.battery + "%"; $("#vacBatBar").style.width = o.battery + "%"; }
-  $$("#vacSuct button").forEach(b => b.classList.toggle("on", SUCTION_TR[o.suction] === b.dataset.s));
-}
-const vacPhrase = { start: "süpürgeyi başlat", pause: "süpürgeyi durdur", dock: "süpürgeyi şarja gönder", seek: "süpürge nerede" };
-$$("[data-vac]").forEach(b => b.onclick = () => runVac(b.dataset.vac, null, vacPhrase[b.dataset.vac]));
-$$("#vacSuct button").forEach(b => b.onclick = () => runVac("suction", b.dataset.s, `süpürgenin emiş gücünü ${b.dataset.s} yap`));
-$$("#vacMode button").forEach(b => b.onclick = () => runVac("mode", b.dataset.m, `süpürgeyi ${b.dataset.m} modunda başlat`));
-async function runVac(a, arg, phrase) { try { const r = await vacuumDo(a, arg, phrase); if (r) { toast(r); speak(r); } } catch (e) { toast(e.message, 4000); } }
-$("#vacForm").onsubmit = e => {
-  e.preventDefault(); const f = e.target;
-  save({ tuya_key: f.tuya_key.value.trim(), tuya_region: f.tuya_region.value, tuya_device: f.tuya_device.value.trim(), ...(f.tuya_secret.value.trim() ? { tuya_secret: f.tuya_secret.value.trim() } : {}) });
-  f.tuya_secret.value = ""; tuyaTok = null; vacFuncs = null; toast("Kaydedildi");
-  vacStatus().then(() => toast("Süpürge bağlandı ✓")).catch(err => toast(err.message, 4500));
-};
+function renderVac() {}
 
 /* ================= bilgisayar (masaüstü NOVA) ================= */
 const pc = { ok: false, since: 0, timer: null };
@@ -748,7 +733,6 @@ function go(v) {
   $("#panels").scrollTop = 0;
   if (v === "news") loadNews(newsCat).then(i => renderNews(i, $("#newsList")));
   if (v === "pc") pcPing();
-  if (v === "ev" && tuyaReady()) vacStatus().catch(e => $("#vacState").textContent = e.message);
   if (v === "settings") fillSettings();
 }
 document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); const u = e.target.closest("[data-url]"); if (u) openUrl(u.dataset.url); });
@@ -761,7 +745,6 @@ function fillSettings() {
   for (const k of ["gemini_model", "user_name", "city"]) f[k].value = S[k] || "";
   f.gemini_key.value = ""; f.gemini_key.placeholder = S.gemini_key ? "•••• kayıtlı (değiştirmek için yaz)" : "aistudio.google.com/apikey";
   for (const k of ["handsfree", "show_caption", "keep_awake", "pc_first"]) f[k].checked = !!S[k];
-  const vf = $("#vacForm"); vf.tuya_key.value = S.tuya_key; vf.tuya_region.value = S.tuya_region; vf.tuya_device.value = S.tuya_device;
 }
 $("#setForm").onsubmit = e => {
   e.preventDefault(); const f = e.target;

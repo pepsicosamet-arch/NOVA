@@ -1,6 +1,6 @@
 ﻿; NOVA kurulum betiği — Inno Setup 6
 #define AppName "NOVA"
-#define AppVersion "1.9.3"
+#define AppVersion "1.9.4"
 #define AppPublisher "Samet Şahin"
 #define AppURL "https://github.com/pepsicosamet-arch/nova"
 
