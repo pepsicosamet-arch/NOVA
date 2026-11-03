@@ -7,3 +7,7 @@ Output/
 *.spec
 settings.json
 *.log
+
+# Android
+android/.gradle/
+android/local.properties

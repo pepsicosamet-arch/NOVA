@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05070f">
+<title>NOVA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-chip="nova" data-view="home">
+<canvas id="sky"></canvas>
+
+<header class="top">
+  <button class="brand" id="brandBtn" aria-label="Çipler"><img src="img/nova.png" alt=""><b id="brandName">NOVA</b></button>
+  <div class="top-r">
+    <button class="pill" id="pcPill" title="Bilgisayar"><i></i><span>PC</span></button>
+    <button class="icon" data-go="settings" aria-label="Ayarlar">⚙</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- SOL: çekirdek (telefonda ana ekran, tablette hep görünür) -->
+  <section class="stage" id="stage">
+    <div class="core-wrap"><canvas id="core"></canvas></div>
+    <div class="state" id="stateText">Dokun ve konuş</div>
+    <div class="caption" id="caption"></div>
+    <div class="partial" id="partial"></div>
+    <div class="suggest" id="suggest">
+      <button>Hava nasıl?</button><button>Gündemi oku</button><button>Tarkan çal</button>
+      <button>10 dakika zamanlayıcı</button><button>Dolar kaç?</button><button>Süpürgeyi başlat</button>
+    </div>
+    <div class="dock">
+      <form class="ask" id="askForm" autocomplete="off">
+        <input id="askInput" placeholder="Yaz ya da mikrofona dokun…" enterkeyhint="send">
+        <button class="send" aria-label="Gönder">➤</button>
+      </form>
+      <button class="mic" id="micBtn" aria-label="Konuş"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12z"/></svg></button>
+    </div>
+  </section>
+
+  <!-- SAĞ: paneller -->
+  <section class="panels" id="panels">
+    <!-- BUGÜN (tablet ana ekran) -->
+    <div class="view" data-view="today">
+      <h2 id="hello">Merhaba</h2>
+      <div class="cards">
+        <div class="card" id="wxCard"><small>Hava</small><b id="wxNow">—</b><span id="wxSub"></span></div>
+        <div class="card" id="fxCard"><small>Piyasa</small><b id="fxNow">—</b><span id="fxSub"></span></div>
+        <div class="card" id="tmCard"><small>Zamanlayıcılar</small><b id="tmNow">Yok</b><span></span></div>
+      </div>
+      <h3>Gündem</h3>
+      <ul class="news" id="todayNews"></ul>
+    </div>
+
+    <!-- GÜNDEM -->
+    <div class="view" data-view="news">
+      <div class="tabs" id="newsTabs">
+        <button data-c="gundem" class="on">Gündem</button><button data-c="sondakika">Son dakika</button>
+        <button data-c="dunya">Dünya</button><button data-c="ekonomi">Ekonomi</button>
+        <button data-c="spor">Spor</button><button data-c="teknoloji">Teknoloji</button>
+      </div>
+      <ul class="news" id="newsList"><li class="empty">Yükleniyor…</li></ul>
+      <button class="ghost wide" id="newsRead">🔊 Başlıkları oku</button>
+    </div>
+
+    <!-- ARAÇLAR -->
+    <div class="view" data-view="tools">
+      <h3>Zamanlayıcılar</h3>
+      <div class="row quick" id="tmQuick"><button data-m="1">1 dk</button><button data-m="5">5 dk</button><button data-m="10">10 dk</button><button data-m="25">25 dk</button><button data-m="60">1 sa</button></div>
+      <ul class="list" id="timerList"></ul>
+      <h3>Notlar</h3>
+      <form class="ask small" id="noteForm"><input id="noteInput" placeholder="Not yaz…"><button class="send">＋</button></form>
+      <ul class="list" id="noteList"></ul>
+    </div>
+
+    <!-- EV -->
+    <div class="view" data-view="ev">
+      <div class="vac" id="vacCard">
+        <div class="vac-head"><div class="vac-ico">🤖</div><div><b>Şımart Katya T</b><span id="vacState">bağlı değil</span></div><div class="bat"><i><s id="vacBatBar"></s></i><b id="vacBat">--%</b></div></div>
+        <div class="grid4">
+          <button data-vac="start" class="go">▶<span>Başlat</span></button>
+          <button data-vac="pause">⏸<span>Durdur</span></button>
+          <button data-vac="dock">⌂<span>Şarja dön</span></button>
+          <button data-vac="seek">🔊<span>Bul</span></button>
+        </div>
+        <h4>Emiş gücü</h4>
+        <div class="seg" id="vacSuct"><button data-s="sessiz">Sessiz</button><button data-s="normal">Normal</button><button data-s="güçlü">Güçlü</button><button data-s="maksimum">Maks</button></div>
+        <h4>Mod</h4>
+        <div class="seg" id="vacMode"><button data-m="kenar">Kenar</button><button data-m="spiral">Spiral</button><button data-m="nokta">Nokta</button><button data-m="paspas">Paspas</button></div>
+        <p class="note">Sesle: <q>süpürgeyi başlat</q>, <q>şarja gönder</q>, <q>süpürgenin şarjı kaç</q>.</p>
+      </div>
+      <details class="setup" id="vacSetup">
+        <summary>⚙ Süpürge bağlantısı</summary>
+        <p class="note">Bilgisayardaki NOVA'da süpürge bağlıysa ve telefon bilgisayara bağlıysa ayar gerekmez; komutlar bilgisayar üzerinden gider. Telefondan doğrudan kontrol için bilgisayardaki <b>Ev</b> menüsünde kullandığın aynı bilgileri gir:</p>
+        <form class="form" id="vacForm" autocomplete="off">
+          <input name="tuya_key" placeholder="Access ID">
+          <input name="tuya_secret" type="password" placeholder="Access Secret">
+          <select name="tuya_region"><option value="eu">Avrupa (Türkiye)</option><option value="us">Amerika</option><option value="in">Hindistan</option><option value="cn">Çin</option></select>
+          <input name="tuya_device" placeholder="Süpürgenin cihaz kimliği">
+          <button class="primary">Kaydet</button>
+        </form>
+      </details>
+    </div>
+
+    <!-- BİLGİSAYAR -->
+    <div class="view" data-view="pc">
+      <div class="pc-status" id="pcStatus"><b>Bilgisayar bağlı değil</b><span>Bilgisayardaki NOVA'da <b>Telefon</b> menüsünü aç ve QR kodu okut.</span></div>
+      <div class="scan" id="scanBox" hidden><video id="scanVideo" playsinline muted></video><canvas id="scanCanvas" hidden></canvas><div class="frame"></div></div>
+      <div class="row"><button class="primary" id="scanBtn">📷 QR kodu okut</button><button class="ghost" id="pcPaste">Bağlantıyı yapıştır</button></div>
+      <div class="pc-tools" id="pcTools" hidden>
+        <h3>Bilgisayara komut</h3>
+        <form class="ask small" id="pcForm"><input id="pcInput" placeholder="örn. Spotify'ı aç, Ahmet'e merhaba yaz"><button class="send">➤</button></form>
+        <div class="row wrap">
+          <button class="ghost" data-pc="sesi kıs">🔉 Ses −</button><button class="ghost" data-pc="sesi aç">🔊 Ses +</button>
+          <button class="ghost" data-pc="sonraki şarkı">⏭ Sonraki</button><button class="ghost" data-pc="müziği durdur">⏯ Durdur</button>
+          <button class="ghost" data-pc="ekran görüntüsü al">🖼 Ekran görüntüsü</button><button class="ghost" id="pcClipOut">📋 Panoya gönder</button>
+          <button class="ghost" id="pcClipIn">📥 PC panosunu al</button><button class="ghost" id="pcForget">✕ Bağlantıyı kaldır</button>
+        </div>
+        <h3>Bilgisayardaki konuşma</h3>
+        <ul class="feed" id="pcFeed"></ul>
+      </div>
+    </div>
+
+    <!-- CANLI TV -->
+    <div class="view" data-view="tv"><div class="tvgrid" id="tvGrid"></div></div>
+
+    <!-- ÇİPLER -->
+    <div class="view" data-view="chips"><div class="chipgrid" id="chipGrid"></div></div>
+
+    <!-- AYARLAR -->
+    <div class="view" data-view="settings">
+      <form class="form" id="setForm" autocomplete="off">
+        <h3>Yapay zekâ</h3>
+        <label>Gemini API anahtarı<input name="gemini_key" type="password" placeholder="aistudio.google.com/apikey"></label>
+        <label>Model<input name="gemini_model" placeholder="gemini-flash-latest"></label>
+        <h3>Sen</h3>
+        <label>Adın<input name="user_name" placeholder="Samet"></label>
+        <label>Şehrin (hava, namaz vakti)<input name="city" placeholder="İstanbul"></label>
+        <h3>Ses</h3>
+        <label class="sw"><input type="checkbox" name="handsfree"><span>Eller serbest: yanıttan sonra tekrar dinle</span></label>
+        <label class="sw"><input type="checkbox" name="show_caption"><span>Yanıtları ekranda yazı olarak göster</span></label>
+        <label class="sw"><input type="checkbox" name="keep_awake"><span>NOVA açıkken ekran kapanmasın</span></label>
+        <label class="sw"><input type="checkbox" name="pc_first"><span>Bilgisayar bağlıyken komutları bilgisayarda çalıştır</span></label>
+        <button class="primary">Kaydet</button>
+      </form>
+      <div class="row"><button class="ghost" id="updBtn">⟳ Güncellemeleri denetle</button><button class="ghost" data-go="about">Hakkında</button></div>
+      <p class="note" id="verText"></p>
+    </div>
+
+    <!-- HAKKINDA -->
+    <div class="view" data-view="about">
+      <div class="about">
+        <img class="avatar" src="img/samet.jpg" alt="Samet Şahin">
+        <h2>Samet Şahin</h2>
+        <p>NOVA'yı tasarlayan ve geliştiren</p>
+        <div class="socials">
+          <button data-url="https://www.instagram.com/xsametsahinx/">Instagram<br><small>@xsametsahinx</small></button>
+          <button data-url="https://www.tiktok.com/@xsametsahinx">TikTok<br><small>@xsametsahinx</small></button>
+          <button data-url="https://www.youtube.com/@xsametsahinx">YouTube<br><small>@xsametsahinx</small></button>
+          <button data-url="https://github.com/pepsicosamet-arch">GitHub<br><small>pepsicosamet-arch</small></button>
+        </div>
+        <p class="note" id="aboutVer"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom" id="nav">
+  <button data-go="home" class="on"><span>◉</span>Ana</button>
+  <button data-go="news"><span>▤</span>Gündem</button>
+  <button data-go="tools"><span>⏱</span>Araçlar</button>
+  <button data-go="ev"><span>⌂</span>Ev</button>
+  <button data-go="pc"><span>🖥</span>PC</button>
+  <button data-go="more"><span>☰</span>Daha</button>
+</nav>
+
+<div class="sheet" id="moreSheet" hidden>
+  <div class="sheet-in">
+    <button data-go="chips">✦<span>Çipler</span></button>
+    <button data-go="tv">📺<span>Canlı TV</span></button>
+    <button data-go="settings">⚙<span>Ayarlar</span></button>
+    <button data-go="about">ⓘ<span>Hakkında</span></button>
+  </div>
+</div>
+
+<div class="banner" id="updBanner" hidden><span>Yeni NOVA sürümü var</span><button id="updGo">İndir</button><button id="updX">✕</button></div>
+<div class="toast" id="toast"></div>
+
+<script src="jsQR.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

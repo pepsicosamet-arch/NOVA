@@ -135,3 +135,16 @@ Ayarlar, takvim ve kayıtlar `%APPDATA%\NOVA\` klasöründe tutulur. API anahtar
 - Hava durumu: Open-Meteo. Kurlar: Truncgil Finans ve TCMB.
 
 © 2026 Samet Şahin
+
+## NOVA Android (telefon ve tablet)
+
+`android/` klasöründe. Her sürümde GitHub Actions, Windows kurulumunun yanına `NOVA-x.y.z-Android.apk` dosyasını da ekler.
+
+- Telefonda dikey, tablette yan yana (çekirdek solda, paneller sağda) çalışır.
+- Türkçe konuşma tanıma ve sesli yanıt; NOVA, ATLAS, LAYRA ve KRONOS çipleri.
+- Gemini ile sohbet, YouTube/Spotify müzik, haberler, hava, döviz, deprem, namaz vakti, zamanlayıcı, not ve canlı TV.
+- WhatsApp/Telegram'a mesaj hazırlama; Şımart robot süpürge kontrolü.
+- Bilgisayardaki NOVA'ya QR ile bağlanır. Bağlıyken mesajlar ve süpürge komutları bilgisayar üzerinden otomatik çalışır.
+- Yeni sürüm çıkınca uygulama haber verir.
+
+Kurulum: APK'yı telefona indir, aç, "bilinmeyen kaynaklardan yükleme" iznini ver.

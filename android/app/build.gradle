@@ -1,0 +1,42 @@
+plugins { id "com.android.application" }
+
+// Sürüm, masaüstüyle aynı: novaapp/__init__.py içindeki VERSION
+def verText = (file("../../novaapp/__init__.py").text =~ /VERSION = "([0-9.]+)"/)[0][1]
+def parts = verText.tokenize(".").collect { it as int } + [0, 0, 0]
+def verCode = parts[0] * 10000 + parts[1] * 100 + parts[2]
+
+android {
+    namespace "com.sametsahin.nova"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.sametsahin.nova"
+        minSdk 24
+        targetSdk 35
+        versionCode verCode
+        versionName verText
+    }
+
+    signingConfigs {
+        release {
+            // GitHub'da NOVA_KEYSTORE ortam değişkeni verilirse o anahtar, yoksa depodaki anahtar kullanılır.
+            // Aynı anahtarla imzalandığı için yeni sürümler eskisinin üstüne güncelleme olarak kurulur.
+            storeFile file(System.getenv("NOVA_KEYSTORE") ?: "../nova-release.jks")
+            storePassword System.getenv("NOVA_KEYSTORE_PASS") ?: "novasamet"
+            keyAlias "nova"
+            keyPassword System.getenv("NOVA_KEYSTORE_PASS") ?: "novasamet"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
