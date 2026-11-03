@@ -186,6 +186,16 @@ public class MainActivity extends Activity {
         }
     }
 
+    static final int REQ_DIALOG = 21;
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != REQ_DIALOG) return;
+        ArrayList<String> l = data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+        emit("heard", res == RESULT_OK && l != null && !l.isEmpty() ? l.get(0) : "");
+    }
+
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
         if (code == KeyEvent.KEYCODE_BACK) {
@@ -282,7 +292,14 @@ public class MainActivity extends Activity {
                 }
                 @Override public void onBufferReceived(byte[] buf) {}
                 @Override public void onEndOfSpeech() { emit("listen_end", ""); }
-                @Override public void onError(int err) { emit("listen_error", String.valueOf(err)); }
+                @Override public void onError(int err) {
+                    // ağ/sunucu/meşgul hatalarında tanıyıcıyı yeniden oluştur (takılı kalmasın)
+                    if (err != SpeechRecognizer.ERROR_NO_MATCH && err != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                        try { recognizer.destroy(); } catch (Exception ignored) {}
+                        recognizer = null;
+                    }
+                    emit("listen_error", String.valueOf(err));
+                }
                 @Override public void onResults(Bundle r) {
                     ArrayList<String> l = r.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                     emit("heard", l != null && !l.isEmpty() ? l.get(0) : "");
@@ -300,8 +317,27 @@ public class MainActivity extends Activity {
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L);
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L);
         try { recognizer.cancel(); } catch (Exception ignored) {}
+        if (quietListen) muteBeep();
         recognizer.startListening(i);
+    }
+
+    boolean quietListen = false;
+    /** Sürekli dinlemede her yeniden başlamada çıkan "bip" sesini kısa süre sustur. */
+    void muteBeep() {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        try {
+            am.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0);
+            am.adjustStreamVolume(AudioManager.STREAM_SYSTEM, AudioManager.ADJUST_MUTE, 0);
+        } catch (Exception ignored) {}
+        ui.postDelayed(() -> {
+            try {
+                am.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_UNMUTE, 0);
+                am.adjustStreamVolume(AudioManager.STREAM_SYSTEM, AudioManager.ADJUST_UNMUTE, 0);
+            } catch (Exception ignored) {}
+        }, 1500);
     }
 
     static String hex(byte[] b, boolean upper) {
@@ -326,12 +362,14 @@ public class MainActivity extends Activity {
         public void http(final String id, final String method, final String url, final String headers, final String body) {
             pool.execute(() -> {
                 JSONObject out = new JSONObject();
+                try { out.put("id", id); } catch (Exception ignored) {}
+                for (int attempt = 0; attempt < 3; attempt++) {
                 try {
-                    out.put("id", id);
                     HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
                     c.setRequestMethod(method == null || method.isEmpty() ? "GET" : method);
-                    c.setConnectTimeout(12000);
-                    c.setReadTimeout(45000);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(90000);
+                    c.setUseCaches(false);
                     c.setInstanceFollowRedirects(true);
                     c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android " + Build.VERSION.RELEASE + ") NOVA-Android/" + MainActivity.this.version());
                     c.setRequestProperty("Accept-Language", "tr-TR,tr;q=0.9");
@@ -359,14 +397,34 @@ public class MainActivity extends Activity {
                     out.put("status", code);
                     out.put("body", new String(bo.toByteArray(), charset));
                     c.disconnect();
+                    break;
                 } catch (Exception e) {
-                    try { out.put("status", 0); out.put("body", String.valueOf(e.getMessage())); } catch (Exception ignored) {}
+                    try { out.put("status", 0); out.put("body", e.getClass().getSimpleName() + ": " + e.getMessage()); } catch (Exception ignored) {}
+                    if (e instanceof java.net.SocketTimeoutException && attempt > 0) break;   // uzun bekleme: tekrar deneme
+                    try { Thread.sleep(700L * (attempt + 1)); } catch (InterruptedException ie) { break; }
+                }
                 }
                 emit("http", out.toString());
             });
         }
 
         @JavascriptInterface public void listen(final String lang) { ui.post(() -> startListen(lang)); }
+
+        @JavascriptInterface public void listenQuiet(final String lang, final boolean quiet) {
+            ui.post(() -> { quietListen = quiet; startListen(lang); });
+        }
+
+        /** Yedek: Google'ın kendi konuşma penceresi (tanıyıcı servis ağ hatası verirse). */
+        @JavascriptInterface public void listenDialog(final String lang) {
+            ui.post(() -> {
+                Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang == null || lang.isEmpty() ? "tr-TR" : lang);
+                i.putExtra(RecognizerIntent.EXTRA_PROMPT, "NOVA dinliyor…");
+                try { startActivityForResult(i, REQ_DIALOG); }
+                catch (Exception e) { emit("listen_error", "unavailable"); }
+            });
+        }
 
         @JavascriptInterface public void stopListen() {
             ui.post(() -> { if (recognizer != null) try { recognizer.cancel(); } catch (Exception ignored) {} });

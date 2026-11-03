@@ -11,21 +11,34 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ================= ayarlar ================= */
 const DEF = { gemini_key: "", gemini_model: "gemini-2.5-flash", user_name: "", city: "İstanbul", chip: "nova",
-  handsfree: false, show_caption: false, keep_awake: false, pc_first: true, pc_base: "", pc_token: "",
+  handsfree: true, show_caption: false, keep_awake: false, pc_first: true, pc_base: "", pc_token: "",
   tuya_key: "", tuya_secret: "", tuya_region: "eu", tuya_device: "" };
 const S = (() => { let o = {}; try { o = JSON.parse(localStorage.getItem("nova") || "{}"); } catch (e) {} return Object.assign({}, DEF, o); })();
+if (!S.v2) { S.handsfree = true; S.v2 = true; try { localStorage.setItem("nova", JSON.stringify(S)); } catch (e) {} }
 function save(patch) { Object.assign(S, patch || {}); try { localStorage.setItem("nova", JSON.stringify(S)); } catch (e) {} }
 const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
 
 /* ================= köprü ================= */
 const pending = {}; let seq = 0;
-function http(url, { method = "GET", headers = {}, body = "" } = {}) {
-  if (!N) return fetch(url, { method, headers, body: body || undefined }).then(async r => ({ status: r.status, body: await r.text() })).catch(e => ({ status: 0, body: String(e) }));
+function webFetch(url, method, headers, body) {
+  return fetch(url, { method, headers, body: body || undefined }).then(async r => ({ status: r.status, body: await r.text() })).catch(e => ({ status: 0, body: String(e) }));
+}
+function nativeHttp(url, method, headers, body) {
   return new Promise(res => {
     const id = "h" + (++seq); pending[id] = res;
     N.http(id, method, url, JSON.stringify(headers), body || "");
-    setTimeout(() => { if (pending[id]) { delete pending[id]; res({ status: 0, body: "zaman aşımı" }); } }, 70000);
+    setTimeout(() => { if (pending[id]) { delete pending[id]; res({ status: 0, body: "zaman aşımı" }); } }, 150000);
   });
+}
+async function http(url, { method = "GET", headers = {}, body = "" } = {}) {
+  if (!N) return webFetch(url, method, headers, body);
+  let r = await nativeHttp(url, method, headers, body);
+  if (r.status === 0) {                       // telefonun ağ katmanı başarısızsa WebView üzerinden dene
+    const w = await webFetch(url, method, headers, body);
+    if (w.status) return w;
+    r.body = (r.body || "") + " | " + (w.body || "");
+  }
+  return r;
 }
 async function getJSON(url, opt) { const r = await http(url, opt); try { return { status: r.status, data: JSON.parse(r.body) }; } catch (e) { return { status: r.status, data: null, text: r.body }; } }
 const openUrl = u => N ? N.openUrl(u) : window.open(u, "_blank");
@@ -39,13 +52,13 @@ window.__native = (type, data) => {
     case "rms": micLevel = Math.max(micLevel, Math.min(1, Math.max(0, (parseFloat(data) + 2) / 11))); break;
     case "partial": $("#partial").textContent = data; break;
     case "listen_end": if (state === "listening" || state === "hearing") setState("thinking"); break;
-    case "heard": $("#partial").textContent = ""; if (data) handle(data, true); else setState("idle"); break;
+    case "heard": $("#partial").textContent = ""; listen.dialogShown = false; netFails = 0; if (data) handle(data, true); else { setState("idle"); keepListening(400); } break;
     case "listen_error": onListenError(data); break;
     case "speak_done": onSpeakDone(data); break;
-    case "mic_permission": if (data !== "1") toast("Mikrofon izni olmadan seni duyamam."); break;
+    case "mic_permission": if (data !== "1") toast("Mikrofon izni olmadan seni duyamam."); else keepListening(500); break;
     case "shared_text": go("home"); handle(data, false); break;
-    case "app_pause": if (state === "listening" || state === "hearing") { N && N.stopListen(); setState("idle"); } break;
-    case "app_resume": pcPing(); break;
+    case "app_pause": appHidden = true; clearTimeout(listenTimer); if (state === "listening" || state === "hearing") { N && N.stopListen(); setState("idle"); } break;
+    case "app_resume": appHidden = false; pcPing(); keepListening(600); break;
   }
 };
 window.__back = () => {
@@ -119,37 +132,56 @@ function onSpeakDone(id) {
   if (id !== lastSpeakId || state !== "speaking") return;
   setState("idle");
   const f = afterSpeak; afterSpeak = null;
-  if (f) f(); else if (S.handsfree && view === "home") setTimeout(() => { if (state === "idle") listen(); }, 350);
+  if (f) f(); else keepListening(300);
 }
 function stopTalking() { speakGen++; afterSpeak = null; N ? N.stopSpeak() : window.speechSynthesis && speechSynthesis.cancel(); setState("idle"); }
 
-/* ================= dinleme ================= */
-let listenFails = 0, webRec = null;
-function listen() {
+/* ================= dinleme (sürekli) ================= */
+let listenFails = 0, netFails = 0, webRec = null, userPaused = false, appHidden = false, listenTimer = null;
+function keepListening(delay = 300) {
+  clearTimeout(listenTimer);
+  listenTimer = setTimeout(() => {
+    if (S.handsfree && !userPaused && !appHidden && (view === "home" || innerWidth >= 880) && state === "idle" && document.activeElement?.tagName !== "INPUT") listen(true);
+  }, delay);
+}
+function listen(quiet) {
+  clearTimeout(listenTimer);
   if (state === "speaking") stopTalking();            // araya girme: konuşmayı kes
   thinkGen++;                                          // düşünüyorsa iptal
   $("#partial").textContent = "";
-  if (N) { N.listen("tr-TR"); setState("listening"); return; }
+  if (N) { N.listenQuiet ? N.listenQuiet("tr-TR", !!quiet) : N.listen("tr-TR"); setState("listening"); return; }
   const R = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!R) { toast("Bu cihazda konuşma tanıma yok; yazarak sorabilirsin."); return; }
   webRec = new R(); webRec.lang = "tr-TR"; webRec.interimResults = true;
   webRec.onstart = () => setState("listening");
   webRec.onresult = e => { const r = e.results[e.results.length - 1]; if (r.isFinal) __native("heard", r[0].transcript); else __native("partial", r[0].transcript); };
   webRec.onerror = e => __native("listen_error", e.error);
-  webRec.onend = () => { if (state === "listening") setState("idle"); };
+  webRec.onend = () => { if (state === "listening") { setState("idle"); keepListening(400); } };
   webRec.start();
 }
 function onListenError(code) {
   $("#partial").textContent = "";
   if (state === "thinking" || state === "speaking") return;
   setState("idle");
-  if (code === "unavailable") toast("Konuşma tanıma bulunamadı. Google uygulamasını yükleyip güncelle.", 4000);
-  else if (code === "9") toast("Mikrofon izni gerekli.");
-  else if (code === "2" || code === "1") toast("Konuşma tanıma için internet gerekli.");
-  else if ((code === "7" || code === "6") && S.handsfree && view === "home" && ++listenFails < 3) setTimeout(listen, 400);
-  if (code !== "7" && code !== "6") listenFails = 0;
+  if (code === "7" || code === "6" || code === "no-speech") { listenFails = 0; netFails = 0; keepListening(250); return; }   // sessizlik: yeniden dinle
+  if (code === "unavailable") { toast("Konuşma tanıma bulunamadı. Play Store'dan Google uygulamasını yükleyip güncelle.", 5000); return; }
+  if (code === "9") { toast("Mikrofon izni gerekli. Ayarlar → Uygulamalar → NOVA → İzinler."); return; }
+  // 1/2: ağ, 4: sunucu, 5: istemci, 8: meşgul, 11+: geçici — tanıyıcı yeniden kurulup tekrar denenir
+  if (++netFails <= 3) { keepListening(800 * netFails); return; }
+  netFails = 0;
+  if (N && N.listenDialog && !listen.dialogShown) {     // tanıma servisi takıldıysa Google'ın kendi penceresiyle dinle
+    listen.dialogShown = true; setState("listening"); N.listenDialog("tr-TR"); return;
+  }
+  toast(code === "2" || code === "1" ? "Konuşma tanıma internete ulaşamıyor. Bağlantını kontrol et." : "Konuşma tanıma şu an yanıt vermiyor.", 4000);
+  keepListening(5000);
 }
-$("#micBtn").onclick = () => { if (state === "listening" || state === "hearing") { N ? N.stopListen() : webRec && webRec.stop(); setState("idle"); } else { listenFails = 0; listen(); } };
+function updateIdleText() { STATE_TXT.idle = userPaused || !S.handsfree ? "Dokun ve konuş" : "Dinlemeye hazırlanıyor"; if (state === "idle") setState("idle"); }
+$("#micBtn").onclick = () => {
+  if (state === "listening" || state === "hearing") {   // dinlerken basınca: dinlemeyi duraklat
+    userPaused = true; clearTimeout(listenTimer); N ? N.stopListen() : webRec && webRec.stop(); setState("idle"); updateIdleText();
+    toast("Dinleme durdu. Tekrar başlatmak için mikrofona dokun.");
+  } else { userPaused = false; listenFails = netFails = 0; listen.dialogShown = false; updateIdleText(); listen(false); }
+};
 $("#core").onclick = () => { if (state === "speaking") stopTalking(); else $("#micBtn").click(); };
 $("#askForm").onsubmit = e => { e.preventDefault(); const v = $("#askInput").value.trim(); if (!v) return; $("#askInput").value = ""; $("#askInput").blur(); handle(v, false); };
 $$("#suggest button").forEach(b => b.onclick = () => handle(b.textContent, false));
@@ -188,6 +220,14 @@ async function geminiCall(model, body, tools) {
   return http(`${GURL}/${encodeURIComponent(model)}:generateContent`,
     { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": S.gemini_key.trim() }, body: JSON.stringify(b) });
 }
+function netMsg(detail) {
+  const d = String(detail || "");
+  if (navigator.onLine === false) return "Telefon internete bağlı değil. Wi-Fi ya da mobil veriyi aç.";
+  if (/UnknownHost|ERR_NAME|resolve/i.test(d)) return "Google'ın sunucusu bulunamadı. Wi-Fi'ı kapatıp aç ya da mobil veriyi dene.";
+  if (/Timeout|zaman aşımı/i.test(d)) return "Gemini çok geç yanıt verdi. Tekrar sor.";
+  if (/SSL|Certificate|Handshake/i.test(d)) return "Güvenli bağlantı kurulamadı. Telefonun tarih ve saatinin doğru olduğundan emin ol.";
+  return "İnternete ulaşamadım. Bağlantını kontrol edip tekrar dene.";
+}
 async function gemini(text) {
   if (!S.gemini_key) throw new Error("Önce Ayarlar'a Gemini API anahtarını gir. Anahtarı aistudio.google.com/apikey adresinden ücretsiz alabilirsin.");
   const contents = history.slice(-12).map(([r, t]) => ({ role: r === "user" ? "user" : "model", parts: [{ text: t }] }));
@@ -206,7 +246,7 @@ async function gemini(text) {
         if (model !== S.gemini_model) save({ gemini_model: model });     // çalışan modeli hatırla
         return out;
       }
-      if (r.status === 0) throw new Error("İnternete ulaşamadım. Bağlantını kontrol eder misin?");
+      if (r.status === 0) { console.warn("ağ:", r.body); throw new Error(netMsg(r.body)); }
       if (r.status === 403 || r.status === 400 && /API[_ ]?key/i.test(r.body)) throw new Error("Gemini API anahtarı geçersiz ya da izinsiz. Ayarlar'dan kontrol et.");
       if (tools && (r.status === 429 || r.status === 400 || r.status >= 500)) {   // arama aracı yükü/kotası: aramasız dene
         if (r.status === 429) noSearchUntil = Date.now() + 3600e3;
@@ -237,7 +277,7 @@ async function handle(text, spoken) {
     catch (e) { reply = e.message || String(e); }
   }
   if (my !== thinkGen) return;                          // kullanıcı araya girdi
-  if (reply === "") { setState("idle"); return; }
+  if (reply === "") { setState("idle"); keepListening(400); return; }
   speak(reply);
 }
 
@@ -752,6 +792,7 @@ function go(v) {
   $("#moreSheet").hidden = true;
   if (scanning && v !== "pc") stopScan();
   view = v; document.body.dataset.view = v;
+  if (v === "home") keepListening(400);
   $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === v || (b.dataset.go === "more" && ["chips", "tv", "settings", "about"].includes(v))));
   $("#panels").scrollTop = 0;
   if (v === "news") loadNews(newsCat).then(i => renderNews(i, $("#newsList")));
@@ -775,7 +816,7 @@ $("#setForm").onsubmit = e => {
   if (f.gemini_key.value.trim()) p.gemini_key = f.gemini_key.value.trim();
   for (const k of ["handsfree", "show_caption", "keep_awake", "pc_first"]) p[k] = f[k].checked;
   save(p); N && N.keepAwake(!!S.keep_awake); if (!S.show_caption) caption("");
-  toast("Kaydedildi ✓"); fillSettings(); refreshToday();
+  toast("Kaydedildi ✓"); fillSettings(); refreshToday(); updateIdleText();
 };
 
 /* ================= güncelleme ================= */
@@ -1040,4 +1081,6 @@ requestAnimationFrame(frame);
 refreshToday(); pcPing();
 setTimeout(() => checkUpdate(false).catch(() => {}), 4000);
 if (!S.gemini_key) setTimeout(() => toast("Sohbet için Ayarlar'a Gemini API anahtarını gir.", 5000), 1500);
+updateIdleText();
+setTimeout(() => keepListening(0), 1200);
 N && N.ready();
