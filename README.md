@@ -38,11 +38,7 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 
 ## Güncelleme yayınlamak (geliştirici için)
 1. Kodda değişikliği yap ve GitHub'a gönder (push).
-2. Yeni sürüm etiketi gönder:
-   ```
-   git tag v1.3.1
-   git push origin v1.3.1
-   ```
+2. `novaapp/__init__.py` dosyasındaki `VERSION` değerini artır (örneğin `"1.3.1"`) ve main dalına gönder. İstersen `v1.3.1` gibi bir etiket (tag) de gönderebilirsin.
 3. GitHub Actions EXE'yi ve kurulum dosyasını derler, ardından **Releases**'e ekler. Bu yaklaşık 5-10 dakika sürer.
 4. NOVA kullanan herkes açılışta "Yeni sürüm" uyarısını görür. Tek tıkla indirip sessizce kurar ve NOVA yeniden açılır.
 

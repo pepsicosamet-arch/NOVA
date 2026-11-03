@@ -1,12 +1,18 @@
-name: NOVA Windows derlemesi
+name: NOVA Windows derlemesi ve sürüm
 
-# Yeni sürüm yayınlamak için:  git tag v1.3.1  &&  git push origin v1.3.1
+# Yeni sürüm yayınlamak için iki yol var:
+#  1) novaapp/__init__.py içindeki VERSION'ı artır (ör. "1.3.1") ve main dalına gönder (push).
+#  2) ya da "v1.3.1" gibi bir etiket gönder.
 # Bu iş EXE + kurulum dosyasını derler ve GitHub Releases'e ekler.
 # Kullanıcıların NOVA'sı açılışta yeni sürümü görür ve tek tıkla günceller.
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths:
+      - "novaapp/__init__.py"
+      - ".github/workflows/build.yml"
     tags: ["v*"]
 
 permissions:
@@ -18,24 +24,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sürüm numarasını belirle
+        id: ver
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            $v = "${{ github.ref_name }}".TrimStart("v")
+            (Get-Content novaapp/__init__.py) -replace 'VERSION = ".*"', "VERSION = `"$v`"" | Set-Content -Encoding utf8 novaapp/__init__.py
+          } else {
+            $v = (Select-String -Path novaapp/__init__.py -Pattern 'VERSION = "(.+)"').Matches[0].Groups[1].Value
+          }
+          (Get-Content installer/nova.iss -Encoding utf8) -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"" | Set-Content -Encoding utf8BOM installer/nova.iss
+          $skip = "false"
+          if ("${{ github.ref }}" -notlike "refs/tags/v*") {
+            gh release view "v$v" --repo "${{ github.repository }}" *> $null
+            if ($LASTEXITCODE -eq 0) { $skip = "true"; Write-Host "v$v zaten yayınlanmış, atlanıyor." }
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "skip=$skip" >> $env:GITHUB_OUTPUT
+          exit 0
+
       - uses: actions/setup-python@v5
+        if: steps.ver.outputs.skip != 'true'
         with:
           python-version: "3.12"
 
-      - name: Sürüm numarasını etiketten al
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
-        run: |
-          $v = "${{ github.ref_name }}".TrimStart("v")
-          (Get-Content novaapp/__init__.py) -replace 'VERSION = ".*"', "VERSION = `"$v`"" | Set-Content -Encoding utf8 novaapp/__init__.py
-          (Get-Content installer/nova.iss -Encoding utf8) -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"" | Set-Content -Encoding utf8BOM installer/nova.iss
-
       - name: Paketleri yükle
+        if: steps.ver.outputs.skip != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
       - name: NOVA.exe oluştur
+        if: steps.ver.outputs.skip != 'true'
         run: >
           pyinstaller --noconfirm --clean --windowed --name NOVA
           --icon assets\nova.ico
@@ -45,19 +68,25 @@ jobs:
           main.py
 
       - name: Inno Setup kur
+        if: steps.ver.outputs.skip != 'true'
         run: choco install innosetup -y --no-progress
 
       - name: Kurulum dosyası oluştur
+        if: steps.ver.outputs.skip != 'true'
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\nova.iss'
 
       - uses: actions/upload-artifact@v4
+        if: steps.ver.outputs.skip != 'true'
         with:
           name: NOVA-Windows-Setup
           path: Output/*.exe
 
       - name: GitHub sürümü (Release) oluştur
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.ver.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: NOVA ${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
           files: Output/*.exe
           generate_release_notes: true
