@@ -48,6 +48,7 @@ if exist dist\NOVA rmdir /s /q dist\NOVA
   --icon "assets\nova.ico" ^
   --add-data "web;web" ^
   --add-data "assets;assets" ^
+  --hidden-import pystray._win32 ^
   --collect-all _sounddevice_data ^
   --collect-all _soundfile_data ^
   main.py

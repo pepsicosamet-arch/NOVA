@@ -28,7 +28,7 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - Sesle değiştirilebilir: "ATLAS'a geç", "LAYRA moduna geç". Adlar Ayarlar → Çipler'den değiştirilebilir.
 
 **Mesajlaşma ve paylaşım** (Mesaj sekmesi)
-- "WhatsApp'tan anneme geliyorum yaz" → NOVA önce sorar ("göndereyim mi?"), "evet" deyince sohbeti açıp mesajı gönderir.
+- "WhatsApp'tan anneme geliyorum yaz" ya da "Ömrüm kişisine seni seviyorum diye mesaj gönder" → NOVA sormadan WhatsApp'ı açar, kişiyi bulur ve mesajı gönderir. Onay sorusu istenirse Ayarlar'dan açılabilir.
 - "Ahmet'e Telegram'dan yarın görüşürüz mesajı gönder" → Telegram'da sohbeti açıp gönderir. İstersen Telegram Bot ile tamamen arka planda gönderebilir.
 - "X'te paylaş: NOVA 1.5 yayında" → X'te gönderi metni hazır açılır, Paylaş butonuna sen basarsın.
 - PC'de WhatsApp, Telegram ya da X uygulaması kuruluysa NOVA onu kullanır; kurulu değilse web sürümünü açar.
@@ -38,6 +38,21 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 **Üst menü:** Gündem, Haberler, Canlı TV, Takvim, Zaman, Harita, Notlar, Mesaj, Çipler, Komutlar, Ayarlar ve Hakkında. Hepsi yazılı ve her zaman görünür.
 
 **Canlı TV:** TRT 1, ATV, Show TV, Star TV, Kanal D, NOW, TV8, Kanal 7, TRT Haber, NTV, Habertürk, CNN Türk, A Haber, Halk TV, Sözcü TV, tv100, TRT Spor ve TRT Çocuk. Kanallar kendi resmî canlı yayın sayfalarında, ayrı bir pencerede açılır. Sesle de olur: "TRT 1'i aç".
+
+**Arka planda çalışma**
+- Pencereyi kapatınca NOVA kapanmaz. Saatin yanındaki sistem tepsisinde durur ve dinlemeye devam eder; sesi doğrudan hoparlörden verir.
+- "NOVA ekranı aç" dediğinde ya da tepsideki simgeye tıkladığında pencere geri gelir. "Arka plana geç" dediğinde pencere gizlenir.
+- Ayarlar'dan "Windows açılınca arka planda başlasın" seçilebilir.
+- Konuşma yazıları varsayılan olarak ekranda görünmez; Ayarlar'dan açılabilir.
+
+**Kamera**
+- "Kamerayı aç", "fotoğraf çek" ve "kamerada ne görüyorsun?" komutları var. NOVA kameradaki görüntüyü yapay zekâya gösterip anlatır.
+- Fotoğraflar Resimler\NOVA klasörüne kaydedilir.
+
+**Telefon bağlantısı**
+- "Telefonumu bağla" dediğinde ya da Telefon menüsünü açtığında ekranda bir QR kod çıkar.
+- Telefon aynı Wi-Fi'dayken QR kod okutulunca telefonda NOVA sayfası açılır.
+- Bu sayfadan NOVA'ya yazılabilir, hızlı komut gönderilebilir, fotoğraf ve dosya yollanabilir (Resimler\NOVA\Telefon) ve iki yönlü pano paylaşılabilir.
 
 **Diğer**
 - "Son depremler" → AFAD verisinden son depremleri söyler.

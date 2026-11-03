@@ -50,3 +50,40 @@ def split_sentences(text: str, first_max: int = 60, max_len: int = 260) -> list[
     if cur:
         chunks.append(cur)
     return chunks
+
+
+_play_lock = None
+
+
+def play_local(mp3: bytes, stop_flag=None) -> bool:
+    """Arayüz kapalıyken (arka plan) sesi doğrudan Windows ile çal (MCI). Çalma bitene kadar bekler."""
+    import os
+    import sys
+    import tempfile
+    import threading
+    import time
+    global _play_lock
+    if not sys.platform.startswith("win") or not mp3:
+        return False
+    if _play_lock is None:
+        _play_lock = threading.Lock()
+    import ctypes
+    mci = ctypes.windll.winmm.mciSendStringW
+    path = os.path.join(tempfile.gettempdir(), f"nova_ses_{threading.get_ident()}.mp3")
+    with _play_lock:
+        with open(path, "wb") as f:
+            f.write(mp3)
+        alias = "novases"
+        mci(f'close {alias}', None, 0, None)
+        if mci(f'open "{path}" type mpegvideo alias {alias}', None, 0, None) != 0:
+            return False
+        mci(f'play {alias}', None, 0, None)
+        buf = ctypes.create_unicode_buffer(64)
+        while True:
+            time.sleep(0.1)
+            mci(f'status {alias} mode', buf, 64, None)
+            if buf.value != "playing" or (stop_flag is not None and not stop_flag.is_set()):
+                break
+        mci(f'stop {alias}', None, 0, None)
+        mci(f'close {alias}', None, 0, None)
+    return True

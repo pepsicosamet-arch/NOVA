@@ -32,6 +32,8 @@ from novaapp import updater, widgets  # noqa: E402
 from novaapp import chips  # noqa: E402
 from novaapp import social  # noqa: E402
 from novaapp import extras, tv  # noqa: E402
+from novaapp import phone as phone_mod  # noqa: E402
+from collections import deque  # noqa: E402
 import datetime as dt  # noqa: E402
 
 
@@ -49,6 +51,10 @@ class Nova:
         self.busy = threading.Event()
         self._interrupted = False
         self.pending = None      # onay bekleyen mesaj
+        self.feed = deque(maxlen=80)   # telefon sayfası için son konuşmalar
+        self._feed_id = 0
+        self.profile = None
+        self.phone = phone_mod.PhoneServer(self)
         self.timers = {}
         self.calendar = widgets.Calendar()
         self.update_info = None
@@ -59,10 +65,73 @@ class Nova:
 
     # ---------------- arayüze olay gönder ----------------
     def emit(self, event_type, **data):
+        if event_type in ("user", "nova") and data.get("text"):
+            self._feed_id += 1
+            self.feed.append({"id": self._feed_id, "who": event_type, "text": data["text"]})
         if not self.ui:
             return
         data["type"] = event_type
         self.ui.hub.send(data)
+
+    def chip_name(self):
+        return chips.name(self.settings)
+
+    # ---------------- pencere / arka plan ----------------
+    def window_open(self):
+        return bool(self.ui and self.ui.hub.count() > 0)
+
+    def show_window(self):
+        if self.window_open():
+            ui.window_show("front")
+        elif self.ui:
+            self.browser = ui.open_window(self.ui.url, self.profile, bool(self.settings.get("fullscreen")))
+
+    def hide_window(self):
+        if self.browser and self.browser.poll() is None:
+            self.browser.terminate()
+        else:
+            ui.window_show("minimize")
+
+    def apply_autostart(self):
+        if not sys.platform.startswith("win") or not getattr(sys, "frozen", False):
+            return
+        import winreg
+        key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as k:
+                if self.settings.get("autostart"):
+                    winreg.SetValueEx(k, "NOVA", 0, winreg.REG_SZ, f'"{sys.executable}" --arka-plan')
+                else:
+                    try:
+                        winreg.DeleteValue(k, "NOVA")
+                    except OSError:
+                        pass
+        except OSError as e:
+            log.warning("Otomatik başlatma ayarlanamadı: %s", e)
+
+    def start_tray(self):
+        try:
+            import pystray
+            from PIL import Image
+        except Exception as e:
+            log.warning("Sistem tepsisi simgesi yok: %s", e)
+            return
+        try:
+            img = Image.open(resource("assets", "nova_256.png"))
+        except Exception:
+            img = Image.new("RGB", (64, 64), "#5fe3ff")
+        mic_label = lambda item: "Mikrofonu kapat" if self.listener.enabled.is_set() else "Mikrofonu aç"
+        menu = pystray.Menu(
+            pystray.MenuItem("NOVA'yı göster", lambda: self.show_window(), default=True),
+            pystray.MenuItem(mic_label, lambda: (self.listener.enabled.clear() if self.listener.enabled.is_set()
+                                                 else self.listener.enabled.set(), self.idle_state())),
+            pystray.MenuItem("Kapat", lambda: self.quit()),
+        )
+        try:
+            self.tray = pystray.Icon("NOVA", img, "NOVA · arka planda dinliyor", menu)
+            threading.Thread(target=self.tray.run, daemon=True, name="nova-tepsi").start()
+        except Exception as e:
+            log.warning("Sistem tepsisi simgesi oluşturulamadı: %s", e)
 
     def set_state(self, state, label=None):
         self.state = state
@@ -85,6 +154,10 @@ class Nova:
         threading.Thread(target=self._stats_loop, daemon=True).start()
         threading.Thread(target=self._calendar_loop, daemon=True, name="nova-takvim").start()
         threading.Thread(target=self._update_check, daemon=True, name="nova-guncelleme").start()
+        if self.settings.get("phone_enabled"):
+            self.phone.start()
+        self.start_tray()
+        self.apply_autostart()
         time.sleep(0.4)
         name = self.settings.get("user_name")
         chip = chips.get(self.settings)
@@ -124,6 +197,13 @@ class Nova:
             try:
                 if source == "announce":
                     self.say(text)
+                elif source == "vision_img":
+                    png, q = text
+                    self.set_state("thinking", "Kameraya bakıyorum")
+                    try:
+                        self.say(self.brain.ask(q or "Kamerada ne görüyorsun? Kısaca anlat.", image_png=png))
+                    except BrainError as e:
+                        self.say(str(e))
                 elif source == "announce_send":
                     self.message_send(text)
                 else:
@@ -138,6 +218,8 @@ class Nova:
                 self.busy.clear()
 
     def _process(self, source, text):
+        if source == "phone":
+            source = "text"
         n = commands.norm(text)
         wake = [commands.norm(w) for w in self.settings.words("wake_words")]
         if "nova" in wake:
@@ -227,6 +309,41 @@ class Nova:
         sm = social.parse(text, n, social.parse_contacts(self.settings.get("contacts")))
         if sm:
             return self.message_flow(sm)
+
+        # --- pencere / arka plan ---
+        if re.search(r"(ekranı|pencereyi|arayüzü|kendini) (aç|göster)|ekrana gel|nova'?yı (aç|göster)", n):
+            self.show_window()
+            return self.say("Buradayım.")
+        if re.search(r"arka plana (geç|çekil|git)|(pencereyi|ekranı|kendini) (gizle|kapat)|gizlen", n):
+            self.say("Arka plana geçiyorum, seni dinlemeye devam ediyorum.")
+            self.hide_window()
+            return
+        # --- kamera ---
+        if re.search(r"kamera(yı|y[ıi])? (aç|başlat|göster)|kamerayı açar mısın", n):
+            self.show_window()
+            self.emit("camera", action="open")
+            return self.say("Kamerayı açtım.")
+        if re.search(r"kamera(yı|y[ıi])? kapat", n):
+            self.emit("camera", action="close")
+            return self.say("Kamerayı kapattım.")
+        if re.search(r"kamera(da|ya) (ne|bak)|beni görüyor musun|elimde ne var|bu ne\b.*kamera|(fotoğraf|resim) çek", n):
+            self.show_window()
+            if re.search(r"(fotoğraf|resim) çek", n):
+                self.emit("camera", action="photo")
+                return self.say("Fotoğraf çekiyorum.")
+            self.emit("camera", action="ask", question=text)
+            return self.set_state("thinking", "Kameraya bakıyorum")
+        # --- telefon bağlantısı ---
+        if re.search(r"telefon(umu|u)? bağla|telefon bağlantısı|qr kod", n):
+            if re.search(r"uygulama|phone link", n):
+                commands.run_app("ms-phone:")
+                return self.say("Telefon Bağlantısı uygulamasını açtım.")
+            self.settings.update({"phone_enabled": True})
+            ok = self.phone.start()
+            self.show_window()
+            self.emit("panel", name="phone")
+            return self.say("Telefonunla ekrandaki QR kodu okut. Telefonun bu bilgisayarla aynı Wi-Fi'da olmalı."
+                            if ok else "Telefon bağlantısı başlatılamadı.")
 
         # --- canlı TV ---
         if re.search(r"\b(canlı|izle|aç|kanal|tv|televizyon)", n) and not re.search(r"youtube|spotify", n):
@@ -481,8 +598,19 @@ class Nova:
         self.speaking.set()
         self.listener.hold.set()
         self.set_state("speaking")
-        # Cümle cümle seslendir: ilk cümle hemen çalarken sonrakiler hazırlanır
         chunks = tts.split_sentences(text)
+        if not self.window_open():                  # arka plan: sesi doğrudan Windows çalar
+            for chunk in chunks:
+                if not self.speaking.is_set():
+                    break
+                voice, pitch, rate, fx = chips.voice(self.settings)
+                audio = tts.synth(chunk, voice, rate, pitch)
+                tts.play_local(audio, self.speaking)
+            self.speaking.clear()
+            time.sleep(0.25)
+            self.listener.hold.clear()
+            return self.idle_state()
+        # Cümle cümle seslendir: ilk cümle hemen çalarken sonrakiler hazırlanır
         for i, chunk in enumerate(chunks):
             if not self.speaking.is_set():  # kullanıcı sözünü kesti
                 break
@@ -554,6 +682,11 @@ class Nova:
 
     def quit(self):
         log.info("NOVA kapanıyor")
+        try:
+            self.tray.stop()
+        except Exception:
+            pass
+        self.phone.stop()
         self.listener.stop()
         if self.browser and self.browser.poll() is None:
             try:
@@ -596,6 +729,45 @@ class Api:
 
     def contacts(self):
         return social.parse_contacts(self._n.settings.get("contacts"))
+
+    def phone_info(self):
+        return self._n.phone.info()
+
+    def phone_toggle(self, on):
+        self._n.settings.update({"phone_enabled": bool(on)})
+        if on:
+            self._n.phone.start()
+        else:
+            self._n.phone.stop()
+        return self._n.phone.info()
+
+    def phone_reset(self):
+        import secrets as _s
+        self._n.settings.update({"phone_token": _s.token_urlsafe(12)})
+        return self._n.phone.info()
+
+    def save_photo(self, data_url):
+        import datetime as _dt
+        from pathlib import Path
+        raw = base64.b64decode(data_url.split(",", 1)[1])
+        folder = Path.home() / "Pictures" / "NOVA"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"kamera_{_dt.datetime.now():%Y%m%d_%H%M%S}.png"
+        path.write_bytes(raw)
+        return {"ok": True, "path": str(path)}
+
+    def camera_vision(self, data_url, question=""):
+        png = base64.b64decode(data_url.split(",", 1)[1])
+        self._n.jobs.put(("vision_img", (png, question)))
+        return True
+
+    def show_window(self):
+        threading.Thread(target=self._n.show_window, daemon=True).start()
+        return True
+
+    def hide(self):
+        threading.Thread(target=self._n.hide_window, daemon=True).start()
+        return True
 
     def tv_open(self, cid):
         ch = tv.open_channel(cid)
@@ -661,6 +833,7 @@ class Api:
 
     def save_settings(self, values):
         self._n.settings.update(values or {})
+        self._n.apply_autostart()
         self._n.emit("chip", chip=chips.get(self._n.settings), chips=chips.public(self._n.settings))
         return {"settings": self._n.settings.public(), "ready": self._n.brain.ready(),
                 "about": build_about(self._n.settings), "chips": chips.public(self._n.settings)}
@@ -800,7 +973,20 @@ def single_instance() -> bool:
     _MUTEX = k32.CreateMutexW(None, False, "Local\\NOVA_SametSahin_Asistan_v2")
     if ctypes.get_last_error() != 183:  # ERROR_ALREADY_EXISTS
         return True
-    return not ui.window_show("front")
+    # Zaten çalışıyor: penceresi varsa öne getir, arka plandaysa pencereyi açmasını iste
+    if ui.window_show("front"):
+        return False
+    try:
+        import json as _json
+        import urllib.request
+        info = _json.loads((nova_log.data_dir() / "nova.run.json").read_text(encoding="utf-8"))
+        req = urllib.request.Request(f"http://127.0.0.1:{info['port']}/api/show_window", data=b"[]", method="POST",
+                                     headers={"X-Nova-Token": info["token"], "Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=3).read()
+        return False
+    except Exception as e:
+        log.warning("Çalışan NOVA'ya ulaşılamadı (%s); yeni kopya başlatılıyor", e)
+        return True
 
 
 def main():
@@ -812,10 +998,22 @@ def main():
     nova = Nova()
     api = Api(nova)
     nova.ui = ui.UIServer(resource("web"), api)
+    try:
+        (nova_log.data_dir() / "nova.run.json").write_text(
+            json.dumps({"port": nova.ui.port, "token": nova.ui.token}), encoding="utf-8")
+    except OSError:
+        pass
     profile = nova_log.data_dir() / "pencere-v2"
-    nova.browser = ui.open_window(nova.ui.url, profile, bool(nova.settings.get("fullscreen")))
+    nova.profile = profile
+    hidden_start = "--arka-plan" in sys.argv
+    if not hidden_start:
+        nova.browser = ui.open_window(nova.ui.url, profile, bool(nova.settings.get("fullscreen")))
 
     def boot():
+        if hidden_start:
+            log.info("Arka planda başladı")
+            nova.start()
+            return
         if nova.ui.hub.ever_connected.wait(40):
             time.sleep(0.4)
             nova.start()
@@ -827,18 +1025,22 @@ def main():
 
     threading.Thread(target=boot, daemon=True, name="nova-boot").start()
 
-    # Pencere kapanınca NOVA da kapansın
+    # Pencere kapanınca: arka plan açıksa dinlemeye devam et, değilse kapan
+    announced = False
     while not nova.quit_event.is_set():
         if nova.browser is not None and nova.browser.poll() is not None:
-            # Edge bazen pencereyi ayrı bir işleme devreder; arayüz hâlâ bağlıysa bekle
-            if nova.ui.hub.ever_connected.is_set() and nova.ui.hub.count() == 0:
-                log.info("Pencere kapandı")
-                break
             nova.browser = None
-        if nova.browser is None and nova.ui.hub.ever_connected.is_set() and nova.ui.hub.count() == 0 \
-                and time.time() - nova.ui.hub.last_seen > 15:
-            log.info("Arayüz 15 sn'dir bağlı değil, kapanıyor")
-            break
+        closed = nova.browser is None and nova.ui.hub.ever_connected.is_set() and nova.ui.hub.count() == 0 \
+            and time.time() - nova.ui.hub.last_seen > 4
+        if closed:
+            if not nova.settings.get("background"):
+                log.info("Pencere kapandı, NOVA kapanıyor")
+                break
+            if not announced:
+                log.info("Pencere kapandı, arka planda çalışıyor")
+                announced = True
+        elif nova.ui.hub.count() > 0:
+            announced = False
         nova.quit_event.wait(1)
     nova.quit()
 

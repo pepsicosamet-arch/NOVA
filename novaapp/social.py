@@ -157,10 +157,15 @@ def set_clipboard(text: str) -> bool:
     import ctypes
     from ctypes import wintypes
     k32, u32 = ctypes.windll.kernel32, ctypes.windll.user32
-    k32.GlobalAlloc.restype = wintypes.HGLOBAL
+    # 64 bit tutamaçlar için tüm tipler açıkça belirtilmeli (yoksa OverflowError)
+    k32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
+    k32.GlobalAlloc.restype = ctypes.c_void_p
+    k32.GlobalLock.argtypes = [ctypes.c_void_p]
     k32.GlobalLock.restype = ctypes.c_void_p
-    k32.GlobalLock.argtypes = [wintypes.HGLOBAL]
-    u32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+    k32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    u32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    u32.SetClipboardData.argtypes = [wintypes.UINT, ctypes.c_void_p]
+    u32.SetClipboardData.restype = ctypes.c_void_p
     data = (text + "\0").encode("utf-16-le")
     for _ in range(5):
         if u32.OpenClipboard(None):
@@ -375,7 +380,11 @@ def parse(text: str, n: str, contacts):
     """'WhatsApp'tan anneme geliyorum yaz' → {'platform', 'contact', 'text'} ya da None."""
     platform = next((p for p, rx in PLAT_RE.items() if re.search(rx, n)), None)
     if not platform:
-        return None
+        # platform söylenmediyse: "ömrüm kişisine ... mesaj gönder" → WhatsApp
+        if re.search(r"kişisine|'(e|a|ye|ya)\b", n) and re.search(r"\b(mesaj\w*|yaz)\b.*\b(gönder|yolla|at|ilet|yaz)\s*$", n):
+            platform = "whatsapp"
+        else:
+            return None
     is_post = platform == "x" and re.search(r"paylaş|tweet|tvit|gönderi|at\b", n)
     is_msg = re.search(r"\b(yaz|gönder|mesaj|de ki|söyle|ilet|at)\b", n)
     if not (is_post or is_msg):

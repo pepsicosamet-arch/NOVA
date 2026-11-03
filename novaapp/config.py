@@ -40,10 +40,16 @@ DEFAULTS = {
     "chip_name_kronos": "",
     # Mesajlaşma ve paylaşım
     "contacts": "",                    # her satır: Ad = telefon = @telegram
-    "msg_confirm": True,               # göndermeden önce sesli onay iste
+    "msg_confirm": False,              # göndermeden önce sesli onay iste
     "msg_auto_send": True,             # sohbet açılınca Enter'a kendisi bassın
     "msg_wait": 4.0,                   # uygulamanın açılmasını bekleme süresi (sn)
     "tg_bot_token": "",                # isteğe bağlı: Telegram Bot ile arka planda gönderim
+    "show_transcript": False,          # konuşma yazılarını ekranda göster
+    "background": True,                # pencere kapanınca arka planda dinlemeye devam et
+    "autostart": False,                # Windows açılınca arka planda başlat
+    "phone_enabled": False,            # telefon bağlantısı (aynı Wi-Fi, QR kod)
+    "phone_port": 8765,
+    "phone_token": "",
     "show_brief": False,               # (kullanılmıyor) haberler ana ekranda kendiliğinden açılmaz
     # Müzik: youtube | ytmusic | spotify
     "music_source": "youtube",

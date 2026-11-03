@@ -212,6 +212,12 @@ window.novaEvent = ev => {
     case "update": showUpdate(ev); break;
     case "chip": applyChip(ev.chip, ev.chips); break;
     case "msg_preview": showMsgPreview(ev); break;
+    case "camera":
+      if (ev.action === "open") camOpen();
+      else if (ev.action === "close") camStop();
+      else if (ev.action === "photo") camPhoto();
+      else if (ev.action === "ask") camAsk(ev.question);
+      break;
     case "msg_sent": toast((ev.ok ? "✓ " : "✕ ") + (PLAT_NAME[ev.platform] || "") + (ev.to ? " · " + ev.to : "")); break;
     case "news_show": showBulletin(ev); break;
     case "news_focus": bulletinFocus(ev.index); break;
@@ -283,6 +289,8 @@ function selectTab(name) {
   if (name === "notes") loadNotes();
   if (name === "map") initMap();
   if (name === "messages") loadContacts();
+  if (name === "phone") loadPhone();
+  if (name !== "camera" && camStream) camStop();
   $$("#menubar [data-menu]").forEach(b => b.classList.toggle("on", b.dataset.menu === name));
 }
 $$(".tabs button").forEach(b => b.onclick = () => selectTab(b.dataset.tab));
@@ -445,6 +453,71 @@ function showMsgPreview(ev) {
 }
 $("#mcYes").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(true); };
 $("#mcNo").onclick = () => { $("#msgCard").hidden = true; api.msg_confirm(false); };
+
+/* ---------- kamera ---------- */
+let camStream = null, camMirror = true;
+async function camStart(deviceId) {
+  if (camStream) return true;
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : { width: { ideal: 1280 } }, audio: false });
+    const v = $("#camVideo"); v.srcObject = camStream; v.classList.toggle("mirror", camMirror);
+    $("#camMsg").hidden = true; $("#camToggle").textContent = "■ Kamerayı kapat";
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    const sel = $("#camSel"); sel.hidden = devs.length < 2; sel.innerHTML = "";
+    devs.forEach((d, i) => sel.add(new Option(d.label || "Kamera " + (i + 1), d.deviceId)));
+    return true;
+  } catch (e) {
+    $("#camMsg").hidden = false;
+    $("#camMsg").textContent = e.name === "NotAllowedError" ? "Kamera izni verilmedi. Adres çubuğundaki kamera simgesinden izin ver." : "Kamera bulunamadı ya da başka bir uygulama kullanıyor.";
+    return false;
+  }
+}
+function camStop() {
+  if (camStream) camStream.getTracks().forEach(t => t.stop());
+  camStream = null; $("#camVideo").srcObject = null;
+  $("#camMsg").hidden = false; $("#camMsg").textContent = "Kamera kapalı."; $("#camToggle").textContent = "▶ Kamerayı aç";
+}
+function camFrame() {
+  const v = $("#camVideo"), c = $("#camCanvas");
+  if (!v.videoWidth) return null;
+  const w = Math.min(1280, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth);
+  c.width = w; c.height = h;
+  const g2 = c.getContext("2d");
+  if (camMirror) { g2.translate(w, 0); g2.scale(-1, 1); }
+  g2.drawImage(v, 0, 0, w, h);
+  return c.toDataURL("image/png");
+}
+async function camOpen() { document.body.classList.add("dock-open"); selectTab("camera"); return camStart(); }
+async function camPhoto() {
+  if (!await camOpen()) return;
+  await new Promise(r => setTimeout(r, camStream && $("#camVideo").videoWidth ? 50 : 1200));
+  const d = camFrame(); if (!d) return toast("Görüntü alınamadı.");
+  const f = $("#camFlash"); f.classList.add("on"); setTimeout(() => f.classList.remove("on"), 60);
+  const r = await api.save_photo(d); toast(r && r.ok ? "📸 Kaydedildi: Resimler\\NOVA" : "Kaydedilemedi.");
+}
+async function camAsk(q) {
+  if (!await camOpen()) return;
+  await new Promise(r => setTimeout(r, $("#camVideo").videoWidth ? 50 : 1500));
+  const d = camFrame(); if (!d) return toast("Görüntü alınamadı.");
+  api.camera_vision(d, q || "");
+}
+$("#camToggle").onclick = () => camStream ? camStop() : camStart();
+$("#camShot").onclick = camPhoto;
+$("#camAsk").onclick = () => camAsk("");
+$("#camMirror").onclick = () => { camMirror = !camMirror; $("#camVideo").classList.toggle("mirror", camMirror); };
+$("#camSel").onchange = e => { camStop(); camStart(e.target.value); };
+
+/* ---------- telefon ---------- */
+function showPhone(i) {
+  if (!i) return;
+  $("#phoneOn").checked = !!i.enabled;
+  $("#qrBox").innerHTML = i.enabled && i.svg ? i.svg : '<p class="empty">Telefon bağlantısı kapalı. Açınca burada QR kod çıkar.</p>';
+  $("#phoneUrl").textContent = i.enabled ? i.url.split("#")[0] : "";
+}
+async function loadPhone() { showPhone(await api.phone_info()); }
+$("#phoneOn").onchange = async e => showPhone(await api.phone_toggle(e.target.checked));
+$("#phoneReset").onclick = async () => { showPhone(await api.phone_reset()); toast("Yeni QR oluşturuldu; eski bağlantılar geçersiz."); };
+$("#phoneLink").onclick = () => api.send_text("telefon bağlantısı uygulamasını aç");
 
 /* ---------- canlı TV ---------- */
 function renderTv(list) {
@@ -696,6 +769,7 @@ form.onsubmit = async e => {
   const r = await api.save_settings(readForm());
   info.settings = r.settings; info.ready = r.ready;
   if (r.about) { info.about = r.about; renderAbout(r.about); }
+  document.body.classList.toggle("no-transcript", !info.settings.show_transcript);
   if (r.chips) { chipList = r.chips; const c = r.chips.find(x => x.id === chipId); if (c) applyChip({ ...c }, r.chips); }
   loadWeather();
   $("#setupNotice").hidden = r.ready;
@@ -759,6 +833,7 @@ function toggleFullscreen() {
 }
 $("#btnFull").onclick = toggleFullscreen;
 $("#btnMin").onclick = () => api.minimize();
+$("#btnBg").onclick = () => { toast("Arka plana geçiyorum, dinlemeye devam ediyorum."); setTimeout(() => api.hide(), 600); };
 $("#btnQuit").onclick = () => { api.quit(); setTimeout(() => window.close(), 300); };
 $("#core").onclick = () => { if (state === "speaking") api.stop_speaking(); };
 $("#ask").onsubmit = e => {
@@ -1050,6 +1125,7 @@ whenReady().then(async a => {
   for (const v of info.voices) sel.add(new Option(v.name, v.id));
   renderAbout(info.about);
   applyChip(info.chip, info.chips);
+  document.body.classList.toggle("no-transcript", !info.settings.show_transcript);
   showFacts();
   setMic(info.mic);
   setState(info.awake ? (info.mic ? "listening" : "idle") : "sleeping");
@@ -1082,7 +1158,7 @@ function demoApi() {
     init: async () => ({ app: "NOVA", version: "1.3.0", about, settings, voices: [{ id: "tr-TR-AhmetNeural", name: "Ahmet (Türkçe, erkek)" }, { id: "tr-TR-EmelNeural", name: "Emel (Türkçe, kadın)" }], state: "listening", awake: true, mic, ready: true, timers: [{ id: 1, label: "Çay", end: Date.now() + 540000 }], update: { available: true, latest: "1.3.1" } }),
     send_text: async t => { addMsg("user", t); setState("thinking"); setTimeout(() => { addMsg("nova", "Bu bir önizleme. Gerçek uygulamada yanıtı Gemini ya da ChatGPT verir."); setState("listening"); }, 1200); },
     speech_done: async () => {}, stop_speaking: async () => {}, cancel_timer: async () => {},
-    contacts: async () => [], apps: async () => ({ whatsapp: true }), msg_send: async () => ({ ok: true, text: "Demo" }), msg_confirm: async () => true, share: async () => true,
+    contacts: async () => [], apps: async () => ({ whatsapp: true }), phone_info: async () => ({ enabled: false }), hide: async () => {}, msg_send: async () => ({ ok: true, text: "Demo" }), msg_confirm: async () => true, share: async () => true,
     toggle_mic: async () => (mic = !mic), set_awake: async a => setState(a ? "listening" : "sleeping"),
     save_settings: async v => ({ settings: Object.assign(settings, v), ready: true }),
     test_brain: async () => ({ ok: true, text: "Önizleme modu." }),
