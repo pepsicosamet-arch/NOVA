@@ -31,6 +31,8 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - "WhatsApp'tan anneme geliyorum yaz" → NOVA önce sorar ("göndereyim mi?"), "evet" deyince sohbeti açıp mesajı gönderir.
 - "Ahmet'e Telegram'dan yarın görüşürüz mesajı gönder" → Telegram'da sohbeti açıp gönderir. İstersen Telegram Bot ile tamamen arka planda gönderebilir.
 - "X'te paylaş: NOVA 1.5 yayında" → X'te gönderi metni hazır açılır, Paylaş butonuna sen basarsın.
+- PC'de WhatsApp, Telegram ya da X uygulaması kuruluysa NOVA onu kullanır; kurulu değilse web sürümünü açar.
+- Tanımadığı bir kişiye mesaj istenirse NOVA numarasını sorar, kişilere kaydeder ve gönderir. Doğrudan numara da söylenebilir: "WhatsApp'tan 0505 123 45 67'ye selam yaz".
 - Kişiler Ayarlar → Mesajlaşma'da tutulur. Her satıra bir kişi yazılır: `Annem = 0555 111 22 33 = @annem_telegram`.
 - Haber bülteninden haberler tek tıkla X, WhatsApp ya da Telegram'da paylaşılabilir.
 

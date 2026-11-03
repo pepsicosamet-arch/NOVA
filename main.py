@@ -201,6 +201,22 @@ class Nova:
         # --- onay bekleyen mesaj var mı? ---
         if self.pending:
             p, self.pending = self.pending, None
+            if p.get("stage") == "number":
+                digits = social.normalize_phone(text)
+                if len(digits) < 11:
+                    p["tries"] = p.get("tries", 0) + 1
+                    if p["tries"] < 2:
+                        self.pending = p
+                        return self.say("Numarayı anlayamadım. Rakam rakam tekrar söyler misin?")
+                    return self.say("Numarayı alamadım. Kişiyi Ayarlar → Mesajlaşma'dan ekleyebilirsin.")
+                name = (p.get("guess") or "Kişi").capitalize()
+                raw = "\n".join(l for l in (self.settings.get("contacts") or "").splitlines()
+                                 if l.strip() and not ("=" not in l and social.normalize_phone(l) == digits)).rstrip()
+                self.settings.update({"contacts": (raw + "\n" if raw else "") + f"{name} = {digits}"})
+                p["contact"] = {"name": name, "phone": digits, "tg": ""}
+                p.pop("missing", None)
+                self.say(f"{name} kişilerime kaydedildi.", record=True)
+                return self.message_flow(p)
             if p.get("stage") == "text":
                 p["text"] = text[:1].upper() + text[1:]
                 p.pop("missing", None)
@@ -464,9 +480,12 @@ class Nova:
     def message_flow(self, m):
         plat = social.PLATFORMS[m["platform"]]
         if m.get("missing") == "contact":
-            who = (m.get("guess") or "Bu kişi").capitalize()
-            self.emit("panel", name="messages")
-            return self.say(f"{who} kişilerimde kayıtlı değil. Ayarlar'daki Mesajlaşma bölümünden ekleyebilirsin.")
+            who = (m.get("guess") or "").capitalize()
+            if not who:
+                return self.say("Kime göndereyim? Kişinin adını ya da numarasını söyle.")
+            m["stage"] = "number"
+            self.pending = m
+            return self.say(f"{who} kişilerimde yok. Numarası ne? Söylersen kaydedip göndereyim.")
         if m.get("missing") == "text" or not m.get("text"):
             m["stage"] = "text"
             self.pending = m
@@ -557,6 +576,12 @@ class Api:
 
     def contacts(self):
         return social.parse_contacts(self._n.settings.get("contacts"))
+
+    def apps(self):
+        try:
+            return social.installed()
+        except Exception:
+            return {"whatsapp": False, "telegram": False, "x": False}
 
     def msg_send(self, platform, to_name, text):
         text = (text or "").strip()

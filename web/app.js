@@ -410,8 +410,10 @@ let contacts = [];
 const PLAT_COLOR = { whatsapp: "#25d366", telegram: "#2aabee", x: "#e7e9ea" };
 const PLAT_NAME = { whatsapp: "WhatsApp", telegram: "Telegram", x: "X" };
 function msgPlat() { return (document.querySelector("[name=mplat]:checked") || {}).value || "whatsapp"; }
+let apps = {};
 async function loadContacts() {
   contacts = await api.contacts() || [];
+  apps = await api.apps() || {};
   const sel = $("#msgTo"); sel.innerHTML = "";
   for (const c of contacts) sel.add(new Option(c.name, c.name));
   const ul = $("#contactList"); ul.innerHTML = "";
@@ -431,7 +433,9 @@ function msgPlatChanged() {
   const p = msgPlat();
   $("#msgTo").hidden = p === "x";
   $("#msgBtn").textContent = p === "x" ? "Paylaş" : "Gönder";
-  $("#msgHint").textContent = p === "x" ? "Gönderi penceresi hazır açılır" : (info && info.settings.msg_auto_send ? "Otomatik gönderilir" : "Sohbet hazır açılır");
+  const where = apps[p] ? "PC uygulaması ✓" : (p === "x" ? "tarayıcıda X" : "web sürümü");
+  const auto = info && info.settings.msg_auto_send;
+  $("#msgHint").textContent = where + " · " + (p === "x" ? (auto ? "otomatik paylaşır" : "gönderi hazır açılır") : (auto ? "otomatik gönderir" : "sohbet hazır açılır"));
 }
 $$("[name=mplat]").forEach(r => r.onchange = msgPlatChanged);
 $("#msgForm").onsubmit = async e => {
@@ -1084,7 +1088,7 @@ function demoApi() {
     init: async () => ({ app: "NOVA", version: "1.3.0", about, settings, voices: [{ id: "tr-TR-AhmetNeural", name: "Ahmet (Türkçe, erkek)" }, { id: "tr-TR-EmelNeural", name: "Emel (Türkçe, kadın)" }], state: "listening", awake: true, mic, ready: true, timers: [{ id: 1, label: "Çay", end: Date.now() + 540000 }], update: { available: true, latest: "1.3.1" } }),
     send_text: async t => { addMsg("user", t); setState("thinking"); setTimeout(() => { addMsg("nova", "Bu bir önizleme. Gerçek uygulamada yanıtı Gemini ya da ChatGPT verir."); setState("listening"); }, 1200); },
     speech_done: async () => {}, stop_speaking: async () => {}, cancel_timer: async () => {},
-    contacts: async () => [], msg_send: async () => ({ ok: true, text: "Demo" }), msg_confirm: async () => true, share: async () => true,
+    contacts: async () => [], apps: async () => ({ whatsapp: true }), msg_send: async () => ({ ok: true, text: "Demo" }), msg_confirm: async () => true, share: async () => true,
     toggle_mic: async () => (mic = !mic), set_awake: async a => setState(a ? "listening" : "sleeping"),
     save_settings: async v => ({ settings: Object.assign(settings, v), ready: true }),
     test_brain: async () => ({ ok: true, text: "Önizleme modu." }),
