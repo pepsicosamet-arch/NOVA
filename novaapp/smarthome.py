@@ -189,6 +189,19 @@ def _err_text(r):
     return f"Tuya hatası: {msg[:160]}"
 
 
+def lan_scan(seconds=8):
+    """Aynı Wi-Fi'daki Tuya cihazlarını bul (cihazların yayınladığı keşif paketlerini dinler; hiçbir şeyi değiştirmez)."""
+    import tinytuya
+    try:
+        found = tinytuya.deviceScan(verbose=False, maxretry=seconds, color=False, poll=False)
+    except Exception as e:
+        log.warning("Ağ taraması hatası: %s", e)
+        return {"ok": False, "error": str(e), "devices": []}
+    devs = [{"ip": ip, "id": d.get("gwId") or d.get("id"), "version": d.get("version"),
+             "product": d.get("productKey")} for ip, d in (found or {}).items()]
+    return {"ok": True, "devices": devs}
+
+
 # ---------------- sesli komutlar ----------------
 import re  # noqa: E402
 

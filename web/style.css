@@ -471,3 +471,5 @@ body.map-on .core-label,body.map-on .bulletin{opacity:0;pointer-events:none}
 .vac-setup form{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 .vac-setup input,.vac-setup select{padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);color:var(--ink)}
 #vacErr{color:#ffb3bd}
+.scan-box{padding:12px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);margin-bottom:6px}
+.scan-box b{font-size:14px}

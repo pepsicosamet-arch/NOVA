@@ -929,6 +929,9 @@ class Api:
         self._n.vacuum.reset()
         return self.home_info()
 
+    def home_scan(self):
+        return smarthome.lan_scan()
+
     def home_devices(self):
         try:
             return {"ok": True, "devices": self._n.vacuum.devices()}

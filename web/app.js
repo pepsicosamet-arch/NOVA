@@ -562,6 +562,22 @@ $("#vacForm").onsubmit = async e => {
   showHome(r);
   toast(r.configured && !r.error ? "🧹 Robot süpürge bağlandı." : (r.error || "Bilgiler eksik."), r.error ? "error" : "");
 };
+$("#vacScan").onclick = async () => {
+  const ul = $("#vacScanList"); ul.innerHTML = '<li class="empty">Wi-Fi dinleniyor (yaklaşık 10 sn)…</li>';
+  const r = await api.home_scan();
+  ul.innerHTML = "";
+  if (!r || !r.ok) { ul.innerHTML = `<li class="empty">Tarama yapılamadı: ${esc((r && r.error) || "")}</li>`; return; }
+  if (!r.devices.length) { ul.innerHTML = '<li class="empty">Ağda Tuya cihazı bulunamadı. Süpürge açık ve aynı Wi-Fi\'daysa, büyük ihtimalle Tuya kullanmıyor.</li>'; return; }
+  for (const d of r.devices) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="av">✓</span><span><span class="nm"></span><small></small></span>';
+    li.querySelector(".nm").textContent = "Tuya cihazı · " + d.ip;
+    li.querySelector("small").textContent = `kimlik ${d.id} · sürüm ${d.version || "?"}`;
+    li.style.cursor = "pointer";
+    li.onclick = () => { $("#vacForm").tuya_device.value = d.id; toast("Cihaz kimliği forma yazıldı."); };
+    ul.appendChild(li);
+  }
+};
 $("#vacFind").onclick = async () => {
   const ul = $("#vacDevs"); ul.innerHTML = '<li class="empty">Aranıyor…</li>';
   const r = await api.home_devices();
