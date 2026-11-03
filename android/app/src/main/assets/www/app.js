@@ -10,7 +10,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ================= ayarlar ================= */
-const DEF = { gemini_key: "", gemini_model: "gemini-flash-latest", user_name: "", city: "İstanbul", chip: "nova",
+const DEF = { gemini_key: "", gemini_model: "gemini-2.5-flash", user_name: "", city: "İstanbul", chip: "nova",
   handsfree: false, show_caption: false, keep_awake: false, pc_first: true, pc_base: "", pc_token: "",
   tuya_key: "", tuya_secret: "", tuya_region: "eu", tuya_device: "" };
 const S = (() => { let o = {}; try { o = JSON.parse(localStorage.getItem("nova") || "{}"); } catch (e) {} return Object.assign({}, DEF, o); })();
@@ -166,38 +166,61 @@ function systemPrompt() {
     "Madde işareti, başlık, emoji ya da markdown kullanma. Kullanıcı hangi dilde konuşursa o dilde yanıt ver, varsayılan Türkçe. " +
     "Müzik, uygulama açma, zamanlayıcı, not, haber, hava, mesaj ve robot süpürge komutlarını NOVA kendisi uygular; senden yalnızca sohbet ve bilgi isteniyor.";
 }
-let noSearchUntil = 0;
+let noSearchUntil = 0, modelList = null;
+const GURL = "https://generativelanguage.googleapis.com/v1beta/models";
+/* Anahtarın erişebildiği "flash" modellerini Google'dan öğren (model adları zamanla değişiyor). */
+async function listModels() {
+  if (modelList) return modelList;
+  const r = await getJSON(`${GURL}?pageSize=200`, { headers: { "x-goog-api-key": S.gemini_key.trim() } });
+  const ms = ((r.data && r.data.models) || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map(m => m.name.replace(/^models\//, ""))
+    .filter(n => /flash/.test(n) && !/(image|tts|audio|live|embed|vision|thinking|learnlm|robotics|computer)/.test(n));
+  const ver = n => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]);
+  const score = n => ver(n) * 10 - (/lite/.test(n) ? 3 : 0) - (/preview|exp/.test(n) ? 5 : 0) - (/-\d{3,}$/.test(n) ? 1 : 0) + (/latest/.test(n) ? 2 : 0);
+  modelList = [...new Set(ms)].sort((x, y) => score(y) - score(x));
+  return modelList;
+}
+async function geminiCall(model, body, tools) {
+  const b = Object.assign({}, body);
+  if (tools) b.tools = [{ google_search: {} }];
+  if (/2\.5-flash/.test(model)) b.generationConfig = Object.assign({}, b.generationConfig, { thinkingConfig: { thinkingBudget: 0 } });
+  return http(`${GURL}/${encodeURIComponent(model)}:generateContent`,
+    { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": S.gemini_key.trim() }, body: JSON.stringify(b) });
+}
 async function gemini(text) {
   if (!S.gemini_key) throw new Error("Önce Ayarlar'a Gemini API anahtarını gir. Anahtarı aistudio.google.com/apikey adresinden ücretsiz alabilirsin.");
   const contents = history.slice(-12).map(([r, t]) => ({ role: r === "user" ? "user" : "model", parts: [{ text: t }] }));
   contents.push({ role: "user", parts: [{ text }] });
   const body = { contents, systemInstruction: { parts: [{ text: systemPrompt() }] }, generationConfig: { temperature: .8, maxOutputTokens: 800 } };
-  const useSearch = Date.now() > noSearchUntil;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const b = Object.assign({}, body);
-    if (useSearch && attempt === 0) b.tools = [{ google_search: {} }];
-    if (/2\.5-flash/.test(S.gemini_model)) b.generationConfig = Object.assign({}, b.generationConfig, { thinkingConfig: { thinkingBudget: 0 } });
-    const r = await http(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.gemini_model)}:generateContent`,
-      { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": S.gemini_key.trim() }, body: JSON.stringify(b) });
-    if (r.status === 200) {
-      const d = JSON.parse(r.body); const parts = (((d.candidates || [])[0] || {}).content || {}).parts || [];
-      const out = parts.map(p => p.text || "").join("").trim();
-      if (!out) throw new Error("Bu isteğe yanıt alamadım.");
-      return out;
+  const tried = new Set(); let queue = [S.gemini_model || "gemini-flash-latest"], last = 0, listed = false;
+  while (queue.length && tried.size < 6) {
+    const model = queue.shift(); if (tried.has(model)) continue; tried.add(model);
+    let tools = Date.now() > noSearchUntil;
+    for (let k = 0; k < 3; k++) {
+      const r = await geminiCall(model, body, tools); last = r.status;
+      if (r.status === 200) {
+        let d = {}; try { d = JSON.parse(r.body); } catch (e) {}
+        const out = ((((d.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("").trim();
+        if (!out) { if (tools) { tools = false; continue; } throw new Error("Bu isteğe yanıt alamadım."); }
+        if (model !== S.gemini_model) save({ gemini_model: model });     // çalışan modeli hatırla
+        return out;
+      }
+      if (r.status === 0) throw new Error("İnternete ulaşamadım. Bağlantını kontrol eder misin?");
+      if (r.status === 403 || r.status === 400 && /API[_ ]?key/i.test(r.body)) throw new Error("Gemini API anahtarı geçersiz ya da izinsiz. Ayarlar'dan kontrol et.");
+      if (tools && (r.status === 429 || r.status === 400 || r.status >= 500)) {   // arama aracı yükü/kotası: aramasız dene
+        if (r.status === 429) noSearchUntil = Date.now() + 3600e3;
+        tools = false; continue;
+      }
+      if (r.status >= 500 && k < 2) { await sleep(900 * (k + 1)); continue; }   // 503: Google yoğun, kısa bekle
+      if (r.status === 404) { const m = r.body.match(/use models\/([\w.\-]+)/); if (m) queue.unshift(m[1]); }
+      break;                                                          // bu model olmadı: sıradakine geç
     }
-    if (r.status === 0) throw new Error("İnternete ulaşamadım. Bağlantını kontrol eder misin?");
-    if ((r.status === 429 || r.status === 400) && b.tools) { if (r.status === 429) noSearchUntil = Date.now() + 3600e3; continue; }
-    if (r.status === 404) {
-      const m = r.body.match(/use models\/([\w.\-]+)/);
-      const next = m ? m[1] : (S.gemini_model !== "gemini-flash-latest" ? "gemini-flash-latest" : "gemini-2.5-flash");
-      if (next !== S.gemini_model) { save({ gemini_model: next }); continue; }
-    }
-    if (r.status === 429) throw new Error("Gemini kotası doldu ya da çok hızlı istek gönderildi. Biraz sonra tekrar dene.");
-    if (r.status === 400 && /API key/i.test(r.body)) throw new Error("Gemini API anahtarı geçersiz. Ayarlar'dan kontrol et.");
-    if (r.status === 403) throw new Error("Gemini bu anahtara izin vermedi. Anahtarı kontrol et.");
-    throw new Error(`Gemini şu an yanıt vermiyor (${r.status}).`);
+    if (!listed) { listed = true; try { queue.push(...(await listModels())); } catch (e) {} }
   }
-  throw new Error("Gemini şu an yanıt vermiyor.");
+  if (last === 429) throw new Error("Gemini kotası doldu. Biraz sonra tekrar dene.");
+  if (last >= 500) throw new Error("Gemini sunucuları şu an çok yoğun. Birkaç saniye sonra tekrar sor.");
+  throw new Error(`Gemini şu an yanıt vermiyor (${last}).`);
 }
 
 /* ================= ana akış ================= */
