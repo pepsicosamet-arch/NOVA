@@ -86,7 +86,9 @@ class Brain:
             have.append("gemini")
         if self.s.get("openai_key"):
             have.append("openai")
-        if self.s.get("custom_url") and self.s.get("custom_model") and self.s.get("provider") == "custom":
+        # Kendi yapay zekan: seçiliyse önce; seçili değilse yerel sunucu (Ollama) yedek olarak denenir
+        url = (self.s.get("custom_url") or "").strip()
+        if url and self.s.get("custom_model") and (self.s.get("provider") == "custom" or _is_local(url)):
             have.append("custom")
         chosen = self.s.get("provider")
         return sorted(have, key=lambda p: p != chosen)
@@ -98,7 +100,7 @@ class Brain:
         order = self.available()
         if not order:
             raise BrainError("Beyin ayarlanmamış. Ayarlar'dan Gemini, ChatGPT ya da kendi yapay zekanı bağla.")
-        last = None
+        last, errors = None, []
         for p in order:
             try:
                 if p == "gemini":
@@ -118,7 +120,8 @@ class Brain:
             except BrainError as e:
                 log.warning("%s çalışmadı: %s", NAMES[p], e)
                 last = e
-        raise last
+                errors.append(e)
+        raise errors[0] if errors else last
 
     # ---------- Gemini ----------
     def _gemini(self, text, image_png=None):
@@ -168,13 +171,15 @@ class Brain:
             raise BrainError("İnternete ulaşamadım. Bağlantını kontrol eder misin?")
         if r.status_code == 200:
             return r.json()
-        if r.status_code == 400 and "tools" in body:
+        if r.status_code in (400, 429) and "tools" in body:
+            # Google Arama aracının ayrı (ve çoğu zaman daha düşük) kotası var: aramasız dene
+            log.warning("Gemini %s (arama aracıyla); aramasız deneniyor", r.status_code)
             return None
         if r.status_code == 404:
             m = re.search(r"use models/([\w.\-]+)", r.text)
             if m and m.group(1) != model:
                 raise ModelGone(m.group(1))
-        log.warning("Gemini %s: %s", r.status_code, r.text[:300])
+        log.warning("Gemini %s: %s", r.status_code, r.text[:1500])
         raise BrainError(_http_message("Gemini", r))
 
     # ---------- OpenAI ve OpenAI uyumlu (kendi yapay zekan) ----------
@@ -192,11 +197,18 @@ class Brain:
             body["max_completion_tokens"] = 900
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         try:
-            r = requests.post(url, json=body, timeout=TIMEOUT, headers=headers)
+            r = requests.post(url, json=body, timeout=(4, 120) if url != OPENAI_URL else TIMEOUT, headers=headers)
+            if r.status_code == 404 and url != OPENAI_URL:
+                better = self._ollama_pick(model)     # model adı yanlışsa kurulu olanı bul
+                if better and better != model:
+                    log.info("Yerel model %s yerine %s kullanılıyor", model, better)
+                    self.s.update({"custom_model": better})
+                    body["model"] = better
+                    r = requests.post(url, json=body, timeout=(4, 120), headers=headers)
         except requests.RequestException:
             if url == OPENAI_URL:
                 raise BrainError("İnternete ulaşamadım. Bağlantını kontrol eder misin?")
-            raise BrainError(f"{name} sunucusuna ulaşamadım ({self.s.get('custom_url')}). Sunucu açık mı?")
+            raise BrainError(f"{name} sunucusuna ulaşamadım ({self.s.get('custom_url')}). Ollama açık mı?")
         if r.status_code != 200:
             log.warning("%s %s: %s", name, r.status_code, r.text[:300])
             raise BrainError(_http_message(name, r))
@@ -204,6 +216,19 @@ class Brain:
             return (r.json()["choices"][0]["message"]["content"] or "").strip()
         except (KeyError, IndexError, ValueError):
             raise BrainError(f"{name} boş yanıt döndü.")
+
+    def _ollama_pick(self, wanted):
+        """Ollama'da kurulu modellerden istenene en yakınını seç."""
+        base = re.sub(r"/v1/?$", "", (self.s.get("custom_url") or "").rstrip("/"))
+        try:
+            names = [m["name"] for m in requests.get(base + "/api/tags", timeout=4).json().get("models", [])]
+        except Exception:
+            return None
+        if not names:
+            return None
+        root = (wanted or "").split(":")[0]
+        return next((n for n in names if n == wanted), None) or \
+            next((n for n in names if n.split(":")[0] == root), None) or names[0]
 
     # ---------- konuşmayı yazıya çevirme (yedekler) ----------
     def transcribe(self, wav_bytes: bytes) -> str:
@@ -244,11 +269,18 @@ class Brain:
         return order[::-1] if self.s.get("provider") == "openai" else order
 
 
+def _is_local(url: str) -> bool:
+    return bool(re.match(r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)", url))
+
+
 def _http_message(name, r):
     if r.status_code in (401, 403):
         return f"{name} API anahtarı geçersiz görünüyor. Ayarlar'dan kontrol eder misin?"
     if r.status_code == 429:
-        return f"{name} kotası doldu ya da çok hızlı istek gönderildi. Biraz sonra tekrar dene."
+        if "quota" in r.text.lower() and "billing" in r.text.lower():
+            return (f"{name} anahtarının kotası doldu. Kota yenilenene kadar Ayarlar'dan ChatGPT'yi "
+                    "ya da 'Kendi YZ'm' (bilgisayarındaki Ollama) seçeneğini kullanabilirsin.")
+        return f"{name} çok hızlı istek aldı. Birkaç saniye sonra tekrar dene."
     if r.status_code == 404:
         return f"{name} modeli bulunamadı. Ayarlar'dan model adını değiştir."
     if r.status_code >= 500:
