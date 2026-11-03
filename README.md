@@ -54,6 +54,11 @@ Kurduktan sonra NOVA yeni sürümleri kendisi bulur. Üst çubukta **"Yeni sür�
 - Telefon aynı Wi-Fi'dayken QR kod okutulunca telefonda NOVA sayfası açılır.
 - Bu sayfadan NOVA'ya yazılabilir, hızlı komut gönderilebilir, fotoğraf ve dosya yollanabilir (Resimler\NOVA\Telefon) ve iki yönlü pano paylaşılabilir.
 
+**Akıllı ev: robot süpürge (Tuya Smart / Smart Life)**
+- Ev menüsünden yapılabilenler: başlat, durdur, şarja dön, bul, emiş gücü, mod ve pil/durum takibi.
+- Sesle: "süpürgeyi başlat", "süpürgeyi şarja gönder", "süpürge nerede", "süpürgenin şarjı kaç", "emiş gücünü maksimum yap".
+- Bağlantı bir kez kurulur. iot.tuya.com'da ücretsiz bulut projesi açılır, Smart Life hesabı bağlanır, Access ID ve Secret NOVA'ya girilir. Adımlar Ev menüsünde yazıyor.
+
 **Söz kesme**
 - NOVA konuşurken ya da düşünürken sen konuşmaya başlarsan hemen susar, düşünmeyi bırakır ve seni dinler. Ayarlar'dan kapatılabilir.
 

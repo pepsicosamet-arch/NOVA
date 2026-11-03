@@ -32,6 +32,7 @@ from novaapp import updater, widgets  # noqa: E402
 from novaapp import chips  # noqa: E402
 from novaapp import social  # noqa: E402
 from novaapp import extras, tv  # noqa: E402
+from novaapp import smarthome  # noqa: E402
 from novaapp import phone as phone_mod  # noqa: E402
 from collections import deque  # noqa: E402
 import datetime as dt  # noqa: E402
@@ -58,6 +59,7 @@ class Nova:
         self._feed_id = 0
         self.profile = None
         self.phone = phone_mod.PhoneServer(self)
+        self.vacuum = smarthome.TuyaVacuum(self.settings)
         self.timers = {}
         self.calendar = widgets.Calendar()
         self.update_info = None
@@ -404,6 +406,11 @@ class Nova:
         if kind:
             self.pending = {"stage": "power", "kind": kind}
             return self.say(extras.POWER[kind][0][:1].upper() + extras.POWER[kind][0][1:] + "?")
+        # --- akıllı ev: robot süpürge ---
+        vi = smarthome.intent(n)
+        if vi:
+            return self.say(self.vacuum_do(*vi))
+
         # --- pratik komutlar ---
         if re.search(r"tam ekran", n):
             ui.window_show("front")
@@ -716,6 +723,39 @@ class Nova:
         self.listener.hold.clear()
         self.idle_state()
 
+    # ---------------- akıllı ev ----------------
+    def vacuum_do(self, action, arg=None):
+        if not self.vacuum.configured():
+            self.show_window()
+            self.emit("panel", name="home")
+            return "Robot süpürge henüz bağlı değil. Ev menüsündeki adımlarla Tuya hesabını bir kez bağlaman gerekiyor."
+        try:
+            if action == "status":
+                st = self.vacuum.status()
+                self.emit("home", status=st)
+                pil = f", şarjı yüzde {st['battery']}" if st["battery"] is not None else ""
+                return f"Süpürge {st['status_tr']}{pil}."
+            if action == "suction":
+                lvl = self.vacuum.suction(arg)
+                reply = f"Emiş gücü {lvl} yapıldı."
+            else:
+                getattr(self.vacuum, action)(*( [arg] if arg else []))
+                reply = {"start": "Süpürge temizliğe başladı.", "pause": "Süpürgeyi durdurdum.",
+                         "dock": "Süpürge şarj istasyonuna dönüyor.", "seek": "Süpürge ses çıkarıyor, sesi takip et.",
+                         "mode": f"Süpürge {arg} modunda temizliyor."}[action]
+            threading.Thread(target=self._home_refresh, daemon=True).start()
+            return reply
+        except Exception as e:
+            log.warning("Süpürge hatası: %s", e)
+            return str(e)
+
+    def _home_refresh(self):
+        time.sleep(3)
+        try:
+            self.emit("home", status=self.vacuum.status())
+        except Exception:
+            pass
+
     # ---------------- mesajlaşma ----------------
     def message_flow(self, m):
         plat = social.PLATFORMS[m["platform"]]
@@ -869,6 +909,38 @@ class Api:
     def hide(self):
         threading.Thread(target=self._n.hide_window, daemon=True).start()
         return True
+
+    def home_info(self):
+        v = self._n.vacuum
+        out = {"configured": v.configured(), "region": self._n.settings.get("tuya_region"),
+               "regions": smarthome.REGIONS}
+        if v.configured():
+            try:
+                out["status"] = v.status()
+            except Exception as e:
+                out["error"] = str(e)
+        return out
+
+    def home_save(self, values):
+        vals = {k: (values or {}).get(k, "") for k in ("tuya_key", "tuya_secret", "tuya_region", "tuya_device")}
+        if not vals["tuya_secret"]:
+            vals.pop("tuya_secret")            # boş bırakılırsa eskisi kalsın
+        self._n.settings.update(vals)
+        self._n.vacuum.reset()
+        return self.home_info()
+
+    def home_devices(self):
+        try:
+            return {"ok": True, "devices": self._n.vacuum.devices()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def home_cmd(self, action, arg=None):
+        if action not in ("start", "pause", "dock", "seek", "suction", "mode", "status"):
+            return {"ok": False}
+        text = self._n.vacuum_do(action, arg)
+        self._n.emit("toast", text="🧹 " + text)
+        return {"ok": True, "text": text}
 
     def tv_open(self, cid):
         ch = tv.open_channel(cid)

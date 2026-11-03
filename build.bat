@@ -51,6 +51,7 @@ if exist dist\NOVA rmdir /s /q dist\NOVA
   --add-data "assets;assets" ^
   --hidden-import pystray._win32 ^
   --hidden-import uiautomation ^
+  --collect-submodules tinytuya ^
   --collect-submodules comtypes.gen ^
   --collect-all _sounddevice_data ^
   --collect-all _soundfile_data ^

@@ -447,3 +447,27 @@ body.map-on .core-label,body.map-on .bulletin{opacity:0;pointer-events:none}
 .avatar{position:relative;overflow:hidden}
 .avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
 .maker .avatar{width:86px;height:86px;border:2px solid color-mix(in srgb,var(--acc) 70%,transparent)}
+
+/* ---------- akıllı ev / robot süpürge ---------- */
+.vac{display:flex;flex-direction:column;gap:12px}
+.vac[hidden],.vac-setup[hidden]{display:none}
+.vac-top{display:flex;align-items:center;gap:12px}
+.vac-top b{display:block;font-size:16px}
+.vac-top span{font-size:13px;color:var(--acc)}
+.vac-top .mini{margin-left:auto}
+.vac-ic{width:52px;height:52px;flex:none;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc)}
+.vac-ic svg{width:34px;height:34px}
+.vac.working .vac-ic svg{animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.vac-bat{display:flex;align-items:center;gap:10px}
+.vac-bat i{flex:1;height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.vac-bat s{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cf5c8,var(--acc));transition:width .6s}
+.vac-bat b{font:600 14px var(--mono)}
+.vac-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vac-btns button{padding:12px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);color:var(--ink);cursor:pointer;font-weight:600;font-size:14px}
+.vac-btns button:hover{border-color:var(--acc)}
+.vac-btns button.go{background:var(--acc);color:#04050b;border-color:var(--acc)}
+.vac-setup .steps a{cursor:pointer}
+.vac-setup form{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.vac-setup input,.vac-setup select{padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);color:var(--ink)}
+#vacErr{color:#ffb3bd}

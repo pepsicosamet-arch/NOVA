@@ -52,6 +52,11 @@ DEFAULTS = {
     "phone_port": 8765,
     "phone_token": "",
     "show_brief": False,               # (kullanılmıyor) haberler ana ekranda kendiliğinden açılmaz
+    # Akıllı ev (Tuya Smart / Smart Life) — robot süpürge
+    "tuya_key": "",
+    "tuya_secret": "",
+    "tuya_region": "eu",
+    "tuya_device": "",
     # Müzik: youtube | ytmusic | spotify
     "music_source": "youtube",
     "sleep_words": "uyu, uyku moduna geç, beklemeye geç",
